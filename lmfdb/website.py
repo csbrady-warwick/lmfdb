@@ -17,6 +17,8 @@ import pages
 assert pages
 import api
 assert api
+import api2
+assert api2
 import bianchi_modular_forms
 assert bianchi_modular_forms
 import hilbert_modular_forms

@@ -1,9 +1,28 @@
 import datetime
-import lmfdb.api2
+from lmfdb.api2 import __version__
+import json
 
-api_version = lmfdb.api2.__version__
+api_version = __version__
 
-def build_api_structure(api_key, record_count, view_start, view_count, record_list, \
+api_type_searchers = 'API_SEARCHERS'
+api_type_description = 'API_DESCRIPTION'
+api_type_records = 'API_RECORDS'
+
+def build_api_wrapper(api_key, api_type, data):
+    """
+    Build the outer wrapper of an API structure. This is used both for search results and for description queries.
+    Is an outer structure so that it can be extended without collisions with data
+
+    api_key -- Key name for API call. Is not checked for correctness
+    api_type -- Type of the API data being returned, should be named constant as above (api_type_*)
+    data -- Container holding the inner data, should match the format expected for api_type
+    """
+
+    return json.dumps({"key":api_key, 'built_at':str(datetime.datetime.now()), 
+        'api_version':api_version, 'type':api_type, 'has_api2':False, 'data':data},
+        indent=4, sort_keys=False)
+
+def build_api_records(api_key, record_count, view_start, view_count, record_list, \
                         max_count=None):
     """
     Build an API object from a set of records. Automatically calculates point to start view to get next record.
@@ -23,10 +42,22 @@ def build_api_structure(api_key, record_count, view_start, view_count, record_li
     """
     view_count = min(view_count, record_count-view_start)
     next_block = view_start + view_count if view_start + view_count < record_count else -1
-    keys = {"key":api_key, "record_count":record_count, "view_start":view_start, "view_count":view_count, \
-            "view_next":next_block,"records":record_list,'built_at':str(datetime.datetime.now()), 'api_version':api_version}
+    keys = {"record_count":record_count, "view_start":view_start, "view_count":view_count, \
+            "view_next":next_block,"records":record_list}
     if max_count: keys['api_max_count'] = max_count
-    return keys
+    return build_api_wrapper(api_key, api_type_records, keys)
+
+def build_api_searchers(names, descriptions):
+
+    """
+    Build an API response for the list of available searchers
+    api_key -- Named API key as registered with register_search_function
+    names -- List of names of searchers
+    descriptions -- List of descriptions for searchers
+    """
+    item_list = [{'name':n, 'desc':d} for n, d in zip(names, descriptions)]
+    
+    return build_api_wrapper('GLOBAL', api_type_searchers, item_list)
 
 def default_projection(info):
     """

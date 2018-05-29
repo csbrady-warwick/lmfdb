@@ -1,9 +1,17 @@
 # -*- coding: utf-8 -*-
 from lmfdb.base import app
-assert app # keeps pyflakes happy
 from lmfdb.utils import make_logger
-assert make_logger # keeps pyflakes happy
 from flask import Blueprint
-assert Blueprint # keeps pyflakes happy
 
-__version__ = '1.0.0'
+__version__ = "1.0.0"
+
+api2_page = Blueprint("API2", __name__, template_folder='templates', static_folder="static")
+
+import api2
+assert api2
+
+#@api2_page.route('/')
+#def main_page():
+#  return "<html>HELLO!</html>"
+
+app.register_blueprint(api2_page, url_prefix="/api2")
