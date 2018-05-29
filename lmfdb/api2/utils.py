@@ -15,10 +15,9 @@ class test_obj:
 class APIEncoder(json.JSONEncoder):
     def default(self, obj):
       try:
-        u = obj._toJSON()
-        return u
+        return obj._toJSON()
       except:
-        json.JSONEncoder.default(self, obj)
+        return json.JSONEncoder.default(self, obj)
 
 
 def build_api_wrapper(api_key, api_type, data):
@@ -156,3 +155,16 @@ def build_query_projection(field_list, exclude=False):
     for el in field_list:
         keys[el] = val
     return keys
+
+def compare_db_strings(str1, str2):
+    """
+    Compare two database strings for compatability. Same db and collection, not same field
+    str1 -- First database string to compare
+    str2 -- Second database string to compare
+    """
+
+    splt1 = str1.split('/')
+    splt2 = str2.split('/')
+
+    if (len(splt1) < 3 or len(splt2) < 3): return False
+    return (splt1[0] == splt2[0]) and (splt1[1] == splt2[1])
