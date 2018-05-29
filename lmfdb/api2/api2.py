@@ -13,18 +13,22 @@ def index():
 @api2_page.route("/description/searchers")
 def list_searchers():
     names=[]
+    h_names=[]
     descs=[]
     for el in searchers:
         names.append(el)
+        h_names.append(searchers[el]['name'])
         descs.append(searchers[el]['desc'])
-    return Response(utils.build_api_searchers(names, descs), mimetype='application/json')
+    return Response(utils.build_api_searchers(names, h_names, descs), mimetype='application/json')
 
 
 @api2_page.route("/description/<db>")
-def description(db):
+def list_descriptions(db):
     dbstr = normalize('NFKD', db).encode('ascii','ignore')
+    print(searchers)
     try:
         val = searchers[dbstr]
+        print('FOUND!')
     except KeyError:
         val = None
 
@@ -33,4 +37,4 @@ def description(db):
         lst = fn()
     else:
         lst = ['ERROR']
-    return Response(str(lst), mimetype='application/json')
+    return Response(utils.build_api_descriptions(dbstr, lst), mimetype='application/json')
