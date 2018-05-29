@@ -54,10 +54,10 @@ def get_data(searcher):
     db_name = None
     for el in els:
         if db_name:
-            if compare_db_strings(el['db_name'], db_name):
+            if compare_db_strings(els[el]['db_name'], db_name):
                 return Response(utils.build_api_error(dbstr, api_err_incompat_search))
         else:
-            db_name = el['db_name']
+            db_name = els[el]['db_name']
 
     splits = db_name.split('/')
 
@@ -65,10 +65,10 @@ def get_data(searcher):
     #Recover the database name and collection name
     search['db_name'] = splits[0]
     search['coll_name'] = splits[1]
-    search['fields'] = []
+    search['fields'] = {}
 
-#    for el in els:
-#        search['fields'].append({
+    for el in els:
+        utils.interpret(search['fields'], el, request.args[el])
     
 
     return Response(els)

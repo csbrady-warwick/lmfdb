@@ -239,9 +239,9 @@ def api_query(db, collection, id = None):
 
         # assure that one of the keys of the query is indexed
         # however, this doesn't assure that the query will be fast... 
-        if q != {} and len(set(q.keys()).intersection(collection_indexed_keys(C[db][collection]))) == 0:
-            flash_error("no key in the query %s is indexed.", q)
-            return flask.redirect(url_for(".api_query", db=db, collection=collection))
+#        if q != {} and len(set(q.keys()).intersection(collection_indexed_keys(C[db][collection]))) == 0:
+#            flash_error("no key in the query %s is indexed.", q)
+#            return flask.redirect(url_for(".api_query", db=db, collection=collection))
 
 
 

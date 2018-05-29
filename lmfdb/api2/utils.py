@@ -168,3 +168,47 @@ def compare_db_strings(str1, str2):
 
     if (len(splt1) < 3 or len(splt2) < 3): return False
     return (splt1[0] == splt2[0]) and (splt1[1] == splt2[1])
+
+def interpret(query, qkey, qval):
+
+    """
+    Try to interpret a user supplied value into a mongo query
+    query -- Existing (can be blank) dictionary to build the query in
+    qkey -- Key (field to be searched in)
+    qval -- Value (taken from user)
+    
+    """
+
+    from ast import literal_eval
+    try:
+        if qkey.startswith("_"):
+            pass
+        elif qval.startswith("s"):
+            qval = qval[1:]
+        elif qval.startswith("i"):
+            qval = int(qval[1:])
+        elif qval.startswith("f"):
+            qval = float(qval[1:])
+        elif qval.startswith("o"):
+            qval = ObjectId(qval[1:])
+        elif qval.startswith("ls"):      # indicator, that it might be a list of strings
+            qval = qval[2:].split(DELIM)
+        elif qval.startswith("li"):
+            qval = [int(_) for _ in qval[2:].split(DELIM)]
+        elif qval.startswith("lf"):
+            qval = [float(_) for _ in qval[2:].split(DELIM)]
+        elif qval.startswith("py"):     # literal evaluation
+            qval = literal_eval(qval[2:])
+        elif qval.startswith("cs"):     # containing string in list
+            qval = { "$in" : [qval[2:]] }
+        elif qval.startswith("ci"):
+            qval = { "$in" : [int(qval[2:])] }
+        elif qval.startswith("cf"):
+            qval = { "$in" : [float(qval[2:])] }
+        elif qval.startswith("cpy"):
+            qval = { "$in" : [literal_eval(qval[3:])] }
+    except:
+        # no suitable conversion for the value, keep it as string
+        pass
+    query[qkey] = qval
+
