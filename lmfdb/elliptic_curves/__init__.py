@@ -2,7 +2,7 @@
 from lmfdb.base import app
 from lmfdb.utils import make_logger
 from flask import Blueprint
-from lmfdb.api2.searchers import register_search_function
+from lmfdb.api2.searchers import register_search_function, register_singleton
 import searchers
 
 ec_page = Blueprint("ec", __name__, template_folder='templates', static_folder="static")
@@ -21,3 +21,5 @@ app.register_blueprint(ec_page, url_prefix="/EllipticCurve/Q")
 
 register_search_function("elliptic_curves_q", "Elliptic Curves over Rationals",
     "Search over elliptic curves defined over rationals", searchers.get_searchers, None)
+register_singleton('EllipticCurve/Q', 'elliptic_curves', 'curves', 'label', 
+    simple_search = searchers.ec_simple_label_search)

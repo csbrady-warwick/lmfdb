@@ -1,5 +1,5 @@
 
-from lmfdb.api2.utils import build_description
+from lmfdb.api2.utils import build_description, create_search_dict
 
 def get_searchers():
 
@@ -9,3 +9,17 @@ def get_searchers():
 
     return desc
 
+def ec_simple_label_search(search, baseurl, label):
+    lmfdb_label = None
+
+    if '.' in label:
+        lmfdb_label = label
+
+    spliturl = label.split('/')
+    if len(spliturl) == 3:
+      lmfdb_label = spliturl[0] + '.' + spliturl[1] + spliturl[2]
+
+    if lmfdb_label:
+        search['query'] = {'lmfdb_label':lmfdb_label}
+    else:
+        search['query'] = {'label':label}

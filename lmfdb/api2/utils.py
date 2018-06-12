@@ -1,6 +1,7 @@
 import datetime
 from lmfdb.api2 import __version__
 import json
+import lmfdb.base as base
 
 api_version = __version__
 
@@ -17,7 +18,23 @@ class APIEncoder(json.JSONEncoder):
       try:
         return obj._toJSON()
       except:
-        return json.JSONEncoder.default(self, obj)
+          try:
+              return str(obj)
+          except:
+              return json.JSONEncoder.default(self, obj)
+
+def create_search_dict(database='', collection='', query=None, view_start=0):
+    """
+    Build an empty search dictionary
+    """
+
+    if query is None:
+        query_alpha = {}
+    else:
+        query_alpha = query
+
+    search = {'database':database, 'collection':collection, 'query':query_alpha, 'view_start':view_start}
+    return search
 
 
 def build_api_wrapper(api_key, api_type, data):
@@ -58,6 +75,25 @@ def build_api_records(api_key, record_count, view_start, view_count, record_list
             "view_next":next_block,"records":record_list}
     if max_count: keys['api_max_count'] = max_count
     return build_api_wrapper(api_key, api_type_records, keys)
+
+def build_api_search(api_key, search_dict, max_count=None):
+    """
+    Build an API object from a set of records. Automatically calculates point to start view to get next record.
+    'View' is the concept of which part of all of the records returned by a query is contained in _this_ api response
+
+    Arguments:
+    api_key -- Named API key as registered with register_search_function
+    search_dict -- Search dictionary compatible with simple_search
+
+    Keyword arguments:
+    max_count -- The maximum number of records in a view that a client can request. This should be the same as
+                 is returned in the main API page unless this value cannot be inferred without context
+
+    """
+
+    metadata, data = simple_search(search_dict)
+    return build_api_records(api_key, metadata['record_count'], search_dict['view_start'], 
+        metadata['view_count'], data, max_count = max_count)
 
 def build_api_searchers(names, human_names, descriptions):
 
@@ -212,3 +248,27 @@ def interpret(query, qkey, qval):
         pass
     query[qkey] = qval
 
+
+def simple_search(search_dict):
+    """
+    Perform a simple search from a request
+    """
+
+    try:
+        offset = search_dict['view_start']
+    except:
+        offset = 0
+
+    try:
+        rcount = search_dict['rcount']
+    except:
+        rcount = 100
+
+    metadata = {}
+    C = base.getDBConnection()
+    data = C[search_dict['database']][search_dict['collection']].find(search_dict['query']).max_time_ms(10000)
+    metadata['record_count'] = data.count()
+    data_out = list(data.skip(offset).limit(rcount))
+#    data_out = list(data)
+    metadata['view_count'] = len(data_out)
+    return metadata, list(data_out)

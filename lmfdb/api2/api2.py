@@ -1,13 +1,34 @@
 from unicodedata import normalize
 from lmfdb.api2 import api2_page
 from flask import render_template, request, url_for, current_app, Response
-from lmfdb.api2.searchers import searchers
+from lmfdb.api2.searchers import searchers, singletons
 import utils
+import json
 
 @api2_page.route("/")
 def index():
     title = "Structure API"
     return render_template("api2.html", **locals())
+
+@api2_page.route("/singletons/<path:path_var>")
+def handle_singletons(path_var):
+  val = path_var.rpartition('/')
+  label = val[2]
+  baseurl = val[0]
+  while baseurl not in singletons:
+     val = baseurl.rpartition('/')
+     baseurl = val[0]
+     label = val[2] + '/' + label
+
+  if baseurl in singletons:
+      search = utils.create_search_dict(database = singletons[baseurl]['database'], 
+          collection = singletons[baseurl]['collection'])
+      if singletons[baseurl]['simple_search']:
+          singletons[baseurl]['simple_search'](search, baseurl, label)
+      else:
+          search['query'] = {singletons[baseurl]['key']:label}
+      print(search)
+      return Response(utils.build_api_search(path_var, search), mimetype='application/json')
 
 
 @api2_page.route("/description/searchers")
@@ -63,12 +84,11 @@ def get_data(searcher):
 
     search = {}
     #Recover the database name and collection name
-    search['db_name'] = splits[0]
-    search['coll_name'] = splits[1]
-    search['fields'] = {}
+    search['database'] = splits[0]
+    search['collection'] = splits[1]
+    search['query'] = {}
 
     for el in els:
-        utils.interpret(search['fields'], el, request.args[el])
-    
+        utils.interpret(search['query'], el, request.args[el])
 
-    return Response(els)
+    return Response(utils.simple_search(search))

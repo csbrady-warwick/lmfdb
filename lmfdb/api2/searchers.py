@@ -1,4 +1,5 @@
 searchers = {}
+singletons = {}
 
 def register_search_function(name, human_name, description, info, search):
     """
@@ -14,3 +15,20 @@ def register_search_function(name, human_name, description, info, search):
     """
     global searchers
     searchers[name] = {'name':human_name, 'desc':description, 'info':info, 'search':search}
+
+def register_singleton(url, database, collection, key, simple_search = None, full_search = None):
+    """
+    Register an API singleton. This is a search that should find a single item
+    from a label or similar key
+
+    Arguments:
+    url -- The URL of the singleton in the main LMFDB. This will become /api2/singletons/{url}
+    database -- The database to search in
+    collection -- The collection to search in
+    key -- The field in the database to search in
+
+    """
+
+    global singletons
+    singletons[url] = {'database':database, 'collection':collection, 'key':key, 
+        'simple_search':simple_search, 'full_search':full_search}
