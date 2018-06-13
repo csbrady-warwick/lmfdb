@@ -9,26 +9,31 @@ def index():
     title = "Structure API"
     return render_template("api2.html", **locals())
 
+@api2_page.route("/live/<db>/<coll>")
+def live_page(db, coll):
+    search = utils.create_search_dict(database=db, collection = coll)
+    return Response(utils.build_api_search(db+'/'+coll, search), mimetype='application/json')
+
 @api2_page.route("/singletons/<path:path_var>")
 def handle_singletons(path_var):
-  val = path_var.rpartition('/')
-  label = val[2]
-  baseurl = val[0]
-  while baseurl not in singletons:
-     val = baseurl.rpartition('/')
-     baseurl = val[0]
-     label = val[2] + '/' + label
+    val = path_var.rpartition('/')
+    label = val[2]
+    baseurl = val[0]
+    while baseurl not in singletons:
+       val = baseurl.rpartition('/')
+       baseurl = val[0]
+       label = val[2] + '/' + label
 
-  if baseurl in singletons:
-      search = utils.create_search_dict(database = singletons[baseurl]['database'], 
-          collection = singletons[baseurl]['collection'])
-      if singletons[baseurl]['full_search']:
-          pass
-      elif singletons[baseurl]['simple_search']:
-          singletons[baseurl]['simple_search'](search, baseurl, label)
-      else:
-          search['query'] = {singletons[baseurl]['key']:label}
-      return Response(utils.build_api_search(path_var, search), mimetype='application/json')
+    if baseurl in singletons:
+        search = utils.create_search_dict(database = singletons[baseurl]['database'], 
+            collection = singletons[baseurl]['collection'])
+        if singletons[baseurl]['full_search']:
+            pass
+        elif singletons[baseurl]['simple_search']:
+            singletons[baseurl]['simple_search'](search, baseurl, label)
+        else:
+            search['query'] = {singletons[baseurl]['key']:label}
+        return Response(utils.build_api_search(path_var, search), mimetype='application/json')
 
 
 @api2_page.route("/description/searchers")
