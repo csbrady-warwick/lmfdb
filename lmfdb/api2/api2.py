@@ -11,7 +11,7 @@ def index():
 
 @api2_page.route("/live/<db>/<coll>")
 def live_page(db, coll):
-    search = utils.create_search_dict(database=db, collection = coll)
+    search = utils.create_search_dict(database=db, collection = coll, request = request)
     return Response(utils.build_api_search(db+'/'+coll, search), mimetype='application/json')
 
 @api2_page.route("/singletons/<path:path_var>")
@@ -26,7 +26,7 @@ def handle_singletons(path_var):
 
     if baseurl in singletons:
         search = utils.create_search_dict(database = singletons[baseurl]['database'], 
-            collection = singletons[baseurl]['collection'])
+            collection = singletons[baseurl]['collection'], request = request)
         if singletons[baseurl]['full_search']:
             pass
         elif singletons[baseurl]['simple_search']:
@@ -45,7 +45,7 @@ def list_searchers():
         names.append(el)
         h_names.append(searchers[el]['name'])
         descs.append(searchers[el]['desc'])
-    return Response(utils.build_api_searchers(names, h_names, descs), mimetype='application/json')
+    return Response(utils.build_api_searchers(names, h_names, descs, request=request), mimetype='application/json')
 
 
 @api2_page.route("/description/<searcher>")
@@ -61,7 +61,7 @@ def list_descriptions(searcher):
         lst = fn()
     else:
         lst = ['ERROR']
-    return Response(utils.build_api_descriptions(dbstr, lst), mimetype='application/json')
+    return Response(utils.build_api_descriptions(dbstr, lst, request=request), mimetype='application/json')
 
 @api2_page.route("/data/<searcher>")
 def get_data(searcher):
@@ -87,11 +87,7 @@ def get_data(searcher):
 
     splits = db_name.split('/')
 
-    search = {}
-    #Recover the database name and collection name
-    search['database'] = splits[0]
-    search['collection'] = splits[1]
-    search['query'] = {}
+    search = utils.create_search_dict(database=splits[0], collection = splits[1], request = request)
 
     for el in els:
         utils.interpret(search['query'], el, request.args[el])

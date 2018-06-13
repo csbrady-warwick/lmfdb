@@ -24,7 +24,7 @@ class APIEncoder(json.JSONEncoder):
           except:
               return json.JSONEncoder.default(self, obj)
 
-def create_search_dict(database='', collection='', query=None, view_start=0):
+def create_search_dict(database='', collection='', query=None, view_start=0, request = None):
     """
     Build an empty search dictionary
     """
@@ -35,10 +35,13 @@ def create_search_dict(database='', collection='', query=None, view_start=0):
         query_alpha = query
 
     search = {'database':database, 'collection':collection, 'query':query_alpha, 'view_start':view_start}
+
+    if request:
+        search['view_start']=int(request.args.get('_view_start', search['view_start']))
     return search
 
 
-def build_api_wrapper(api_key, api_type, data):
+def build_api_wrapper(api_key, api_type, data, request = None):
     """
     Build the outer wrapper of an API structure. This is used both for search results and for description queries.
     Is an outer structure so that it can be extended without collisions with data
@@ -46,6 +49,7 @@ def build_api_wrapper(api_key, api_type, data):
     api_key -- Key name for API call. Is not checked for correctness
     api_type -- Type of the API data being returned, should be named constant as above (api_type_*)
     data -- Container holding the inner data, should match the format expected for api_type
+    request -- Flask request object to query for needed data
     """
 
     return json.dumps({"key":api_key, 'built_at':str(datetime.datetime.now()), 
@@ -53,7 +57,7 @@ def build_api_wrapper(api_key, api_type, data):
         indent=4, sort_keys=False, cls = APIEncoder)
 
 def build_api_records(api_key, record_count, view_start, view_count, record_list, \
-                        max_count=None):
+                        max_count=None, request = None):
     """
     Build an API object from a set of records. Automatically calculates point to start view to get next record.
     'View' is the concept of which part of all of the records returned by a query is contained in _this_ api response
@@ -68,6 +72,7 @@ def build_api_records(api_key, record_count, view_start, view_count, record_list
     Keyword arguments:
     max_count -- The maximum number of records in a view that a client can request. This should be the same as
                  is returned in the main API page unless this value cannot be inferred without context
+    request -- Flask request object to query for needed data
 
     """
     view_count = min(view_count, record_count-view_start)
@@ -75,9 +80,9 @@ def build_api_records(api_key, record_count, view_start, view_count, record_list
     keys = {"record_count":record_count, "view_start":view_start, "view_count":view_count, \
             "view_next":next_block,"records":record_list}
     if max_count: keys['api_max_count'] = max_count
-    return build_api_wrapper(api_key, api_type_records, keys)
+    return build_api_wrapper(api_key, api_type_records, keys, request)
 
-def build_api_search(api_key, search_dict, max_count=None):
+def build_api_search(api_key, search_dict, max_count=None, request = None):
     """
     Build an API object from a set of records. Automatically calculates point to start view to get next record.
     'View' is the concept of which part of all of the records returned by a query is contained in _this_ api response
@@ -89,40 +94,43 @@ def build_api_search(api_key, search_dict, max_count=None):
     Keyword arguments:
     max_count -- The maximum number of records in a view that a client can request. This should be the same as
                  is returned in the main API page unless this value cannot be inferred without context
+    request -- Flask request object to query for needed data
 
     """
 
     metadata, data = simple_search(search_dict)
     return build_api_records(api_key, metadata['record_count'], search_dict['view_start'], 
-        metadata['view_count'], data, max_count = max_count)
+        metadata['view_count'], data, max_count = max_count, request = request)
 
-def build_api_searchers(names, human_names, descriptions):
+def build_api_searchers(names, human_names, descriptions, request = None):
 
     """
     Build an API response for the list of available searchers
     human_names -- List of human readable names
     names -- List of names of searchers
     descriptions -- List of descriptions for searchers
+    request -- Flask request object to query for needed data
     """
     item_list = [{'name':n, 'human_name':h, 'desc':d} for n, h, d in zip(names, human_names, descriptions)]
     
-    return build_api_wrapper('GLOBAL', api_type_searchers, item_list)
+    return build_api_wrapper('GLOBAL', api_type_searchers, item_list, request)
 
 
 
-def build_api_descriptions(api_key, description_object):
+def build_api_descriptions(api_key, description_object, request = None):
 
     """
     Build an API response for the descriptions of individual searches provided by a searcher
     api_key -- Named API key as registered with register_search_function
     description_object -- Description object
+    request -- Flask request object to query for needed data
     """
-    return build_api_wrapper(api_key, api_type_descriptions, description_object)
+    return build_api_wrapper(api_key, api_type_descriptions, description_object, request)
 
 
 
 def build_description(objlist, name, desc, type, h_name, 
-    db_name=None, coll_name=None, field_name=None):
+    db_name=None, coll_name=None, field_name=None, request=None):
 
     """
     Build a description object by specifying a new searchable field
@@ -136,6 +144,7 @@ def build_description(objlist, name, desc, type, h_name,
     db_name -- Name of database to be searched by this searcher. Optional
     coll_name -- Name of collection to be searched by this searcher. Optional
     field_name -- Name of field to be searched by this searcher. Optional
+    request -- Flask request object to query for needed data. Optional
     """
     
 
