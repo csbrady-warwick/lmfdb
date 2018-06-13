@@ -2,7 +2,7 @@
 from lmfdb.base import app
 from lmfdb.utils import make_logger
 from flask import Blueprint
-from lmfdb.api2.searchers import register_search_function, register_singleton
+from lmfdb.api2.searchers import register_singleton
 import searchers
 
 ecnf_page = Blueprint("ecnf", __name__, template_folder='templates', static_folder="static")

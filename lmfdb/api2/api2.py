@@ -1,9 +1,8 @@
 from unicodedata import normalize
 from lmfdb.api2 import api2_page
-from flask import render_template, request, url_for, current_app, Response
+from flask import render_template, request, Response
 from lmfdb.api2.searchers import searchers, singletons
 import utils
-import json
 
 @api2_page.route("/")
 def index():
@@ -23,11 +22,12 @@ def handle_singletons(path_var):
   if baseurl in singletons:
       search = utils.create_search_dict(database = singletons[baseurl]['database'], 
           collection = singletons[baseurl]['collection'])
-      if singletons[baseurl]['simple_search']:
+      if singletons[baseurl]['full_search']:
+          pass
+      elif singletons[baseurl]['simple_search']:
           singletons[baseurl]['simple_search'](search, baseurl, label)
       else:
           search['query'] = {singletons[baseurl]['key']:label}
-      print(search)
       return Response(utils.build_api_search(path_var, search), mimetype='application/json')
 
 
@@ -75,8 +75,8 @@ def get_data(searcher):
     db_name = None
     for el in els:
         if db_name:
-            if compare_db_strings(els[el]['db_name'], db_name):
-                return Response(utils.build_api_error(dbstr, api_err_incompat_search))
+            if utils.compare_db_strings(els[el]['db_name'], db_name):
+                return Response(utils.build_api_error(dbstr, utils.api_err_incompat_search))
         else:
             db_name = els[el]['db_name']
 

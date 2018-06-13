@@ -26,7 +26,8 @@ def register_singleton(url, database, collection, key, simple_search = None, ful
     database -- The database to search in
     collection -- The collection to search in
     key -- The field in the database to search in
-
+    simple_search -- A function that modifies a query object to make it search for the requested object
+    full_search -- A function that performs a search itself and returns the results
     """
 
     global singletons

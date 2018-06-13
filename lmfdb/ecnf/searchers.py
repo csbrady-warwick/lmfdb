@@ -1,6 +1,5 @@
 from urllib import unquote
 from lmfdb.ecnf.WebEllipticCurve import convert_IQF_label
-from lmfdb.api2.utils import build_description, create_search_dict
 from lmfdb.search_parsing import nf_string_to_label
 def ecnf_simple_label_search(search, baseurl, label):
 

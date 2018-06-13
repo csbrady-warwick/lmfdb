@@ -1,5 +1,5 @@
 
-from lmfdb.api2.utils import build_description, create_search_dict
+from lmfdb.api2.utils import build_description
 
 def get_searchers():
 

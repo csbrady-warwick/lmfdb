@@ -1,6 +1,7 @@
 import datetime
 from lmfdb.api2 import __version__
 import json
+from bson.objectid import ObjectId
 import lmfdb.base as base
 
 api_version = __version__
@@ -214,6 +215,8 @@ def interpret(query, qkey, qval):
     qval -- Value (taken from user)
     
     """
+
+    DELIM = ','
 
     from ast import literal_eval
     try:
