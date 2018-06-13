@@ -1,8 +1,19 @@
 from unicodedata import normalize
 from lmfdb.api2 import api2_page
-from flask import render_template, request, Response
+from flask import render_template, request, Response, make_response
 from lmfdb.api2.searchers import searchers, singletons
 import utils
+
+@api2_page.route("api.css")
+def api_css():
+    response = make_response(render_template("api.css"))
+    response.headers['Content-type'] = 'text/css'
+    # don't cache css file, if in debug mode.
+    if True:
+        response.headers['Cache-Control'] = 'no-cache, no-store'
+    else:
+        response.headers['Cache-Control'] = 'public, max-age=600'
+    return response
 
 @api2_page.route("/")
 def index():
@@ -13,6 +24,12 @@ def index():
 def live_page(db, coll):
     search = utils.create_search_dict(database=db, collection = coll, request = request)
     return Response(utils.build_api_search(db+'/'+coll, search), mimetype='application/json')
+
+@api2_page.route("/pretty/<path:path_var>")
+def prettify_live(path_var):
+    bread = []
+    return render_template('view.html', data_url=path_var, bread=bread)
+
 
 @api2_page.route("/singletons/<path:path_var>")
 def handle_singletons(path_var):
@@ -25,7 +42,7 @@ def handle_singletons(path_var):
        label = val[2] + '/' + label
 
     if baseurl in singletons:
-        search = utils.create_search_dict(database = singletons[baseurl]['database'], 
+        search = utils.create_search_dict(database = singletons[baseurl]['database'],
             collection = singletons[baseurl]['collection'], request = request)
         if singletons[baseurl]['full_search']:
             pass
@@ -34,7 +51,6 @@ def handle_singletons(path_var):
         else:
             search['query'] = {singletons[baseurl]['key']:label}
         return Response(utils.build_api_search(path_var, search), mimetype='application/json')
-
 
 @api2_page.route("/description/searchers")
 def list_searchers():
