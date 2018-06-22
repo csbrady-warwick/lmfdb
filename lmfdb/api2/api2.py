@@ -38,6 +38,7 @@ def handle_singletons(path_var):
     baseurl = val[0]
     while baseurl not in singletons:
        val = baseurl.rpartition('/')
+       if val[0] == '': break
        baseurl = val[0]
        label = val[2] + '/' + label
 
@@ -45,12 +46,13 @@ def handle_singletons(path_var):
         search = utils.create_search_dict(database = singletons[baseurl]['database'],
             collection = singletons[baseurl]['collection'], request = request)
         if singletons[baseurl]['full_search']:
-            pass
+            return Response(singletons[baseurl]['full_search'], mimetype='application/json')
         elif singletons[baseurl]['simple_search']:
             singletons[baseurl]['simple_search'](search, baseurl, label)
         else:
             search['query'] = {singletons[baseurl]['key']:label}
-        return Response(utils.build_api_search(path_var, search), mimetype='application/json')
+        return Response(utils.build_api_search(path_var, search, request = request), mimetype='application/json')
+    return Response(utils.build_api_error(path_var), mimetype='application/json')
 
 @api2_page.route("/description/searchers")
 def list_searchers():
@@ -73,11 +75,14 @@ def list_descriptions(searcher):
         val = None
 
     if (val):
-        fn = val['info']
-        lst = fn()
+        if val.get('info', None): 
+            lst = val['info']()
+        else:
+            lst = utils.get_filtered_fields(val['auto'])
     else:
-        lst = ['ERROR']
-    return Response(utils.build_api_descriptions(dbstr, lst, request=request), mimetype='application/json')
+        return Response(utils.build_api_error(searcher), mimetype='application/json')
+    if list:
+        return Response(utils.build_api_descriptions(dbstr, lst, request=request), mimetype='application/json')
 
 @api2_page.route("/data/<searcher>")
 def get_data(searcher):
@@ -87,25 +92,13 @@ def get_data(searcher):
     except KeyError:
         val = None
 
-    data = val['info']()
-    els = {}
-    for el in request.args:
-        if el in data:
-            els[el] = data[el]
+    if not val : return Response(utils.build_api_error(searcher), mimetype='application/json')
 
-    db_name = None
-    for el in els:
-        if db_name:
-            if utils.compare_db_strings(els[el]['db_name'], db_name):
-                return Response(utils.build_api_error(dbstr, utils.api_err_incompat_search))
-        else:
-            db_name = els[el]['db_name']
-
-    splits = db_name.split('/')
+    splits = val['auto']
 
     search = utils.create_search_dict(database=splits[0], collection = splits[1], request = request)
 
-    for el in els:
+    for el in request.args:
         utils.interpret(search['query'], el, request.args[el])
-
-    return Response(utils.simple_search(search))
+    return Response(utils.build_api_search('/data/'+searcher, search, request=request), mimetype='application/json')
+#    return Response(utils.simple_search(search))

@@ -3,12 +3,14 @@ from lmfdb.api2 import __version__
 import json
 from bson.objectid import ObjectId
 import lmfdb.base as base
+import lmfdb.inventory_app.inventory_viewer as inventory
 
 api_version = __version__
 
 api_type_searchers = 'API_SEARCHERS'
 api_type_descriptions = 'API_DESCRIPTIONS'
 api_type_records = 'API_RECORDS'
+api_type_error = 'API_ERROR'
 
 class test_obj:
     def _toJSON(self):
@@ -34,10 +36,12 @@ def create_search_dict(database='', collection='', query=None, view_start=0, req
     else:
         query_alpha = query
 
-    search = {'database':database, 'collection':collection, 'query':query_alpha, 'view_start':view_start}
+    search = {'database':database, 'collection':collection, 'query':query_alpha, 'view_start':view_start, 
+        'max_count':100}
 
     if request:
         search['view_start']=int(request.args.get('_view_start', search['view_start']))
+        search['max_count'] = min(int(request.args.get('_max_count', search['max_count'])), 100)
     return search
 
 
@@ -98,7 +102,7 @@ def build_api_search(api_key, search_dict, max_count=None, request = None):
 
     """
 
-    metadata, data = simple_search(search_dict)
+    metadata, data = simple_search(search_dict, request)
     return build_api_records(api_key, metadata['record_count'], search_dict['view_start'], 
         metadata['view_count'], data, max_count = max_count, request = request)
 
@@ -116,7 +120,6 @@ def build_api_searchers(names, human_names, descriptions, request = None):
     return build_api_wrapper('GLOBAL', api_type_searchers, item_list, request)
 
 
-
 def build_api_descriptions(api_key, description_object, request = None):
 
     """
@@ -127,6 +130,15 @@ def build_api_descriptions(api_key, description_object, request = None):
     """
     return build_api_wrapper(api_key, api_type_descriptions, description_object, request)
 
+
+def build_api_error(string, request = None):
+
+    """
+    Build an API response for an error
+    api_key -- string to return as error
+    request -- Flask request object to query for needed data
+    """
+    return build_api_wrapper('GLOBAL', api_type_error, "", request)
 
 
 def build_description(objlist, name, desc, type, h_name, 
@@ -161,26 +173,42 @@ def build_description(objlist, name, desc, type, h_name,
     objlist[name]['desc'] = desc_obj
     objlist[name]['type'] = type
 
+def get_filtered_fields(coll_pair):
 
-def default_projection(info):
     """
-    Build a projection from an info dictionary as returned by flask. _id always excluded
+    Get a list of fields on which searching is possible
+    coll_pair -- Two element list or tuple (database, collection)
+    """
 
-    Keywords of info dict used:
+    dbcon = base.getDBConnection()
+    data = inventory.retrieve_description(dbcon.inventory, coll_pair[0], coll_pair[1])
+    field_list = data['data']
+    if not field_list : return None
+
+    return field_list
+
+
+def default_projection(request):
+    """
+    Build a projection from an request dictionary as returned by flask. _id always excluded
+
+    Keywords of request dict used:
     exclude -- logical for whether to build an inclusive or exclusive projection (default False)
     fields -- comma separated list of fields to include (exclude if keyword set)
 
     """
+    print('Seeking projection')
+    print(request.args.get('_fields'))
     try:
-        fields = info['fields'].split(',')
+        fields = request.args.get('_fields').split(',')
         exclude = False
         try:
-            info['exclude']
-            exclude = True
+            if request.args.get('_exclude'): exclude = True
         except:
             pass
         project = build_query_projection(fields, exclude = exclude)
-    except KeyError:
+        print(project)
+    except:
         project = None
     return project
 
@@ -230,7 +258,7 @@ def interpret(query, qkey, qval):
     from ast import literal_eval
     try:
         if qkey.startswith("_"):
-            pass
+            return
         elif qval.startswith("s"):
             qval = qval[1:]
         elif qval.startswith("i"):
@@ -257,11 +285,11 @@ def interpret(query, qkey, qval):
             qval = { "$in" : [literal_eval(qval[3:])] }
     except:
         # no suitable conversion for the value, keep it as string
-        pass
+        return
     query[qkey] = qval
 
 
-def simple_search(search_dict):
+def simple_search(search_dict, request):
     """
     Perform a simple search from a request
     """
@@ -272,13 +300,14 @@ def simple_search(search_dict):
         offset = 0
 
     try:
-        rcount = search_dict['rcount']
+        rcount = search_dict['max_count']
     except:
         rcount = 100
 
     metadata = {}
+    projection = default_projection(request)
     C = base.getDBConnection()
-    data = C[search_dict['database']][search_dict['collection']].find(search_dict['query']).max_time_ms(10000)
+    data = C[search_dict['database']][search_dict['collection']].find(search_dict['query'], projection).max_time_ms(10000)
     metadata['record_count'] = data.count()
     data_out = list(data.skip(offset).limit(rcount))
 #    data_out = list(data)

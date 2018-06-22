@@ -1,18 +1,20 @@
 
 
-function fetch(offset){
+function fetch(offset, chunk){
 
   //Fetch the json data for this page, using the url given and specified offset
 
   var XHR = new XMLHttpRequest();
   url = dataRoot + dataSource;
   url = url + '?_view_start='+offset;
+  url = url + '&_max_count='+chunk;
   XHR.open('GET', url);
   XHR.setRequestHeader('Content-Type', 'text/plain');
 
   XHR.addEventListener('load', function(event) {
     //On success fill in page data
   	var data = JSON.parse(XHR.response);
+    console.log(XHR.response);
     clearData();
     if(jQuery.isEmptyObject(data)){
       onLoadingFail();
@@ -48,7 +50,7 @@ function onLoadingFail(){
 
 function fetchInitial(){
   //Fetch initial record set
-  fetch(0);
+  fetch(0, defaultChunkSize);
 }
 
 function clearData(){
@@ -81,6 +83,7 @@ function fillPage(data){
     div.appendChild(objDiv);
     dataDiv.appendChild(div);
   }
+  window.scrollTo(0,0);
 }
 
 function updateRecordInfo(start, end, tot){
@@ -97,7 +100,7 @@ function fetchNext(){
 
   if(hasMoreRecords){
     offset = offset + defaultChunkSize
-    fetch(offset);
+    fetch(offset, defaultChunkSize);
   }else{
     alert('No further records to fetch');
   }
@@ -107,7 +110,7 @@ function fetchPrev(){
 
   if(offset > 0){
     offset = min(0, offset - defaultChunkSize);
-    fetch(offset);
+    fetch(offset, defaultChunkSize);
   }else{
     alert('No previous records to fetch');
   }
