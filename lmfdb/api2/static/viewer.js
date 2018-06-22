@@ -6,9 +6,10 @@ function fetch(offset, chunk){
 
   var XHR = new XMLHttpRequest();
   url = dataRoot + dataSource;
-  url = url + '?_view_start='+offset;
-  url = url + '&_max_count='+chunk;
-  XHR.open('GET', url);
+
+  newUrl = addGetParam(url, '_view_start', offset);
+  newUrl = addGetParam(newUrl, '_max_count', chunk);
+  XHR.open('GET', newUrl);
   XHR.setRequestHeader('Content-Type', 'text/plain');
 
   XHR.addEventListener('load', function(event) {
@@ -32,6 +33,19 @@ function fetch(offset, chunk){
   });
 
   XHR.send('');
+}
+
+function addGetParam(url, name, value){
+
+  newUrl = url;
+  hasGet = (newUrl.indexOf('?') != -1);
+  if(hasGet){
+    newUrl = newUrl + '&'; 
+  }else{
+    newUrl = newUrl + '?'; 
+  }
+  newUrl = newUrl + name + '=' + value;
+  return newUrl;
 }
 
 function onLoadingFail(){
