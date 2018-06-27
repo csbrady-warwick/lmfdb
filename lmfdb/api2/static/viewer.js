@@ -6,21 +6,22 @@ function fetch(offset, chunk){
 
   var XHR = new XMLHttpRequest();
   url = dataRoot + dataSource;
+  var params = extractGetParams();
+  params = addGetParam(params, '_view_start', offset);
+  params = addGetParam(params, '_max_count', chunk);
 
-  newUrl = addGetParam(url, '_view_start', offset);
-  newUrl = addGetParam(newUrl, '_max_count', chunk);
+  newUrl = urlFromParams(url, params);
+  
   XHR.open('GET', newUrl);
   XHR.setRequestHeader('Content-Type', 'text/plain');
 
   XHR.addEventListener('load', function(event) {
     //On success fill in page data
   	var data = JSON.parse(XHR.response);
-    console.log(XHR.response);
     clearData();
     if(jQuery.isEmptyObject(data)){
       onLoadingFail();
     }else{
-      console.log(data.data);
       if(data.data.view_next == -1) hasMoreRecords = false;
       fillPage(data);
       $( document ).trigger("dataPopulated");
@@ -35,17 +36,39 @@ function fetch(offset, chunk){
   XHR.send('');
 }
 
-function addGetParam(url, name, value){
+function extractGetParams(){
 
-  newUrl = url;
-  hasGet = (newUrl.indexOf('?') != -1);
-  if(hasGet){
-    newUrl = newUrl + '&'; 
-  }else{
-    newUrl = newUrl + '?'; 
+  var params = window.location.search.substring(1);
+  var paramsArray = params.split('&');
+  var splitArray = [];
+  for( item in paramsArray){
+    splitArray.push(paramsArray[item].split('='));
   }
-  newUrl = newUrl + name + '=' + value;
-  return newUrl;
+  return splitArray;
+}
+
+function addGetParam(params, name, value){
+
+  for(item in params){
+    if(params[item][0] == name){
+      params[item][1] = value;
+      return params;
+    }
+  }
+  //Else is a new param
+  params.push([name, value]);
+  return params;
+}
+function urlFromParams(url, params){
+  //Construct a url from given url, plus params
+  
+  if(params.length > 0) url = url +'?';
+  var pairs = [];
+  for(item in params){
+    pairs.push(params[item][0]+'='+params[item][1]);
+  }
+  url = url + pairs.join('&');
+  return url;
 }
 
 function onLoadingFail(){

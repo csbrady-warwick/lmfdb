@@ -23,7 +23,7 @@ def index():
 @api2_page.route("/live/<db>/<coll>")
 def live_page(db, coll):
     search = utils.create_search_dict(database=db, collection = coll, request = request)
-    return Response(utils.build_api_search(db+'/'+coll, search), mimetype='application/json')
+    return Response(utils.build_api_search(db+'/'+coll, search, request = request), mimetype='application/json')
 
 @api2_page.route("/pretty/<path:path_var>")
 def prettify_live(path_var):
