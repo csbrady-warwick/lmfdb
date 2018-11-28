@@ -15,6 +15,12 @@ class searcher:
   desc = None
   auto = None
 
+  def get_name(self):
+      return self.human_name
+
+  def get_description(self):
+      return self.desc
+
   def get_info(self):
       if (self._full_info): return self._full_info()
       return utils.get_filtered_fields(self.auto)

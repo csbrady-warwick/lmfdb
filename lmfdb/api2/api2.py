@@ -61,8 +61,8 @@ def list_searchers():
     descs=[]
     for el in searchers:
         names.append(el)
-        h_names.append(searchers[el].human_name)
-        descs.append(searchers[el].description)
+        h_names.append(searchers[el].get_name())
+        descs.append(searchers[el].get_description())
     return Response(utils.build_api_searchers(names, h_names, descs, request=request), mimetype='application/json')
 
 
