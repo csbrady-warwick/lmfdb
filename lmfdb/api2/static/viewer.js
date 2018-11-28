@@ -11,6 +11,7 @@ function fetch(offset, chunk){
   params = addGetParam(params, '_max_count', chunk);
 
   newUrl = urlFromParams(url, params);
+  console.log(newUrl);
   
   XHR.open('GET', newUrl);
   XHR.setRequestHeader('Content-Type', 'text/plain');
@@ -65,7 +66,10 @@ function urlFromParams(url, params){
   if(params.length > 0) url = url +'?';
   var pairs = [];
   for(item in params){
-    pairs.push(params[item][0]+'='+params[item][1]);
+    console.log(params[item]);
+    if (params[item]!=""){
+      pairs.push(params[item][0]+'='+params[item][1]);
+    }
   }
   url = url + pairs.join('&');
   return url;
@@ -110,7 +114,7 @@ function fillPage(data){
     var div = document.createElement('div');
 
     var titleSpan = document.createElement('div');
-    titleSpan.innerHTML = 'Record ' + i;
+    titleSpan.innerHTML = 'Record ' + (i + 1);
 
     var str = JSON.stringify(recordList[i], null, 2);
     var objDiv = document.createElement('code');
@@ -126,7 +130,7 @@ function fillPage(data){
 function updateRecordInfo(start, end, tot){
 /* Update the start, end , of fields */
   var span = document.getElementById('num');
-  span.innerHTML = start + ' to ' + end;
+  span.innerHTML = (start+1) + ' to ' + (end+1);
 
   var span = document.getElementById('totnum');
   span.innerHTML = tot;

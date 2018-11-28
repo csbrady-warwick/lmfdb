@@ -61,8 +61,8 @@ def list_searchers():
     descs=[]
     for el in searchers:
         names.append(el)
-        h_names.append(searchers[el]['name'])
-        descs.append(searchers[el]['desc'])
+        h_names.append(searchers[el].human_name)
+        descs.append(searchers[el].description)
     return Response(utils.build_api_searchers(names, h_names, descs, request=request), mimetype='application/json')
 
 
@@ -75,14 +75,26 @@ def list_descriptions(searcher):
         val = None
 
     if (val):
-        if val.get('info', None): 
-            lst = val['info']()
-        else:
-            lst = utils.get_filtered_fields(val['auto'])
+        lst = val.get_info()
     else:
         return Response(utils.build_api_error(searcher), mimetype='application/json')
     if list:
         return Response(utils.build_api_descriptions(dbstr, lst, request=request), mimetype='application/json')
+
+@api2_page.route("/inventory/<searcher>")
+def list_responses(searcher):
+    dbstr = normalize('NFKD', searcher).encode('ascii','ignore')
+    try:
+        val = searchers[dbstr]
+    except KeyError:
+        val = None
+
+    if (val):
+        lst = val.get_inventory()
+    else:
+        return Response(utils.build_api_error(searcher), mimetype='application/json')
+    if lst:
+        return Response(utils.build_api_inventory(dbstr, lst, request=request), mimetype='application/json')
 
 @api2_page.route("/data/<searcher>")
 def get_data(searcher):
@@ -94,11 +106,6 @@ def get_data(searcher):
 
     if not val : return Response(utils.build_api_error(searcher), mimetype='application/json')
 
-    splits = val['auto']
+    search = val.auto_search(request)
 
-    search = utils.create_search_dict(database=splits[0], collection = splits[1], request = request)
-
-    for el in request.args:
-        utils.interpret(search['query'], el, request.args[el])
     return Response(utils.build_api_search('/data/'+searcher, search, request=request), mimetype='application/json')
-#    return Response(utils.simple_search(search))

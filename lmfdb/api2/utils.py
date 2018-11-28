@@ -9,6 +9,7 @@ api_version = __version__
 
 api_type_searchers = 'API_SEARCHERS'
 api_type_descriptions = 'API_DESCRIPTIONS'
+api_type_inventory = 'API_INVENTORY'
 api_type_records = 'API_RECORDS'
 api_type_error = 'API_ERROR'
 
@@ -43,7 +44,6 @@ def create_search_dict(database='', collection='', query=None, view_start=0, req
         search['view_start']=int(request.args.get('_view_start', search['view_start']))
         search['max_count'] = min(int(request.args.get('_max_count', search['max_count'])), 100)
     return search
-
 
 def build_api_wrapper(api_key, api_type, data, request = None):
     """
@@ -86,7 +86,7 @@ def build_api_records(api_key, record_count, view_start, view_count, record_list
     if max_count: keys['api_max_count'] = max_count
     return build_api_wrapper(api_key, api_type_records, keys, request)
 
-def build_api_search(api_key, search_dict, max_count=None, request = None):
+def build_api_search(api_key, mddtuple, max_count=None, request = None):
     """
     Build an API object from a set of records. Automatically calculates point to start view to get next record.
     'View' is the concept of which part of all of the records returned by a query is contained in _this_ api response
@@ -102,7 +102,9 @@ def build_api_search(api_key, search_dict, max_count=None, request = None):
 
     """
 
-    metadata, data = simple_search(search_dict, request)
+    metadata = mddtuple[0]
+    data = mddtuple[1]
+    search_dict = mddtuple[2]
     return build_api_records(api_key, metadata['record_count'], search_dict['view_start'], 
         metadata['view_count'], data, max_count = max_count, request = request)
 
@@ -115,7 +117,7 @@ def build_api_searchers(names, human_names, descriptions, request = None):
     descriptions -- List of descriptions for searchers
     request -- Flask request object to query for needed data
     """
-    item_list = [{'name':n, 'human_name':h, 'desc':d} for n, h, d in zip(names, human_names, descriptions)]
+    item_list = [{n:{ 'human_name':h, 'desc':d}} for n, h, d in zip(names, human_names, descriptions)]
     
     return build_api_wrapper('GLOBAL', api_type_searchers, item_list, request)
 
@@ -129,6 +131,16 @@ def build_api_descriptions(api_key, description_object, request = None):
     request -- Flask request object to query for needed data
     """
     return build_api_wrapper(api_key, api_type_descriptions, description_object, request)
+
+def build_api_inventory(api_key, description_object, request = None):
+
+    """
+    Build an API response for the keys that could be returned by the searcher
+    api_key -- Named API key as registered with register_search_function
+    description_object -- Description object
+    request -- Flask request object to query for needed data
+    """
+    return build_api_wrapper(api_key, api_type_inventory, description_object, request)
 
 
 def build_api_error(string, request = None):
@@ -243,53 +255,73 @@ def compare_db_strings(str1, str2):
     if (len(splt1) < 3 or len(splt2) < 3): return False
     return (splt1[0] == splt2[0]) and (splt1[1] == splt2[1])
 
-def interpret(query, qkey, qval):
+def interpret(query, qkey, qval, type_info):
 
     """
     Try to interpret a user supplied value into a mongo query
     query -- Existing (can be blank) dictionary to build the query in
     qkey -- Key (field to be searched in)
     qval -- Value (taken from user)
-    
+    type_info -- String defining type of qval. Used if present and interpretable
     """
 
     DELIM = ','
 
     from ast import literal_eval
-    try:
-        if qkey.startswith("_"):
+
+    user_infer = True
+
+    if type_info and not qkey.startswith("|"):
+        user_infer = False
+        try:
+            if type_info == 'string':
+                pass #Already a string
+            elif type_info == 'integer':
+                qval = int(qval)
+            elif type_info == 'real':
+                qval = float(qval)
+            elif type_info == 'list of integers':
+                qval = [int(_) for _ in qval[2:].split(DELIM)]
+            elif type_info == 'ist of integers stored as string':
+                qval = str([int(_) for _ in qval[2:].split(DELIM)])
+        except:
+          user_infer = True
+
+    if user_infer:
+        try:
+            if qkey.startswith("_"):
+                return
+            elif qval.startswith("s"):
+                qval = qval[1:]
+            elif qval.startswith("i"):
+                qval = int(qval[1:])
+            elif qval.startswith("f"):
+                qval = float(qval[1:])
+            elif qval.startswith("o"):
+                qval = ObjectId(qval[1:])
+            elif qval.startswith("ls"):      # indicator, that it might be a list of strings
+                qval = qval[2:].split(DELIM)
+            elif qval.startswith("li"):
+                qval = [int(_) for _ in qval[2:].split(DELIM)]
+            elif qval.startswith("lf"):
+                qval = [float(_) for _ in qval[2:].split(DELIM)]
+            elif qval.startswith("py"):     # literal evaluation
+                qval = literal_eval(qval[2:])
+            elif qval.startswith("cs"):     # containing string in list
+                qval = { "$in" : [qval[2:]] }
+            elif qval.startswith("ci"):
+                qval = { "$in" : [int(qval[2:])] }
+            elif qval.startswith("cf"):
+                qval = { "$in" : [float(qval[2:])] }
+            elif qval.startswith("cpy"):
+                qval = { "$in" : [literal_eval(qval[3:])] }
+        except:
+            # no suitable conversion for the value, keep it as string
             return
-        elif qval.startswith("s"):
-            qval = qval[1:]
-        elif qval.startswith("i"):
-            qval = int(qval[1:])
-        elif qval.startswith("f"):
-            qval = float(qval[1:])
-        elif qval.startswith("o"):
-            qval = ObjectId(qval[1:])
-        elif qval.startswith("ls"):      # indicator, that it might be a list of strings
-            qval = qval[2:].split(DELIM)
-        elif qval.startswith("li"):
-            qval = [int(_) for _ in qval[2:].split(DELIM)]
-        elif qval.startswith("lf"):
-            qval = [float(_) for _ in qval[2:].split(DELIM)]
-        elif qval.startswith("py"):     # literal evaluation
-            qval = literal_eval(qval[2:])
-        elif qval.startswith("cs"):     # containing string in list
-            qval = { "$in" : [qval[2:]] }
-        elif qval.startswith("ci"):
-            qval = { "$in" : [int(qval[2:])] }
-        elif qval.startswith("cf"):
-            qval = { "$in" : [float(qval[2:])] }
-        elif qval.startswith("cpy"):
-            qval = { "$in" : [literal_eval(qval[3:])] }
-    except:
-        # no suitable conversion for the value, keep it as string
-        return
     query[qkey] = qval
 
 
-def simple_search(search_dict, request):
+def simple_search(search_dict, projection):
     """
     Perform a simple search from a request
     """
@@ -305,11 +337,9 @@ def simple_search(search_dict, request):
         rcount = 100
 
     metadata = {}
-    projection = default_projection(request)
     C = base.getDBConnection()
     data = C[search_dict['database']][search_dict['collection']].find(search_dict['query'], projection).max_time_ms(10000)
     metadata['record_count'] = data.count()
     data_out = list(data.skip(offset).limit(rcount))
-#    data_out = list(data)
     metadata['view_count'] = len(data_out)
-    return metadata, list(data_out)
+    return metadata, list(data_out), search_dict
