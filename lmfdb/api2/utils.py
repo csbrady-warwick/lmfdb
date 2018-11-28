@@ -271,7 +271,7 @@ def interpret(query, qkey, qval, type_info):
 
     user_infer = True
 
-    if type_info and not qkey.startswith("|"):
+    if type_info and not qval.startswith("|"):
         user_infer = False
         try:
             if type_info == 'string':
@@ -284,8 +284,12 @@ def interpret(query, qkey, qval, type_info):
                 qval = [int(_) for _ in qval[2:].split(DELIM)]
             elif type_info == 'ist of integers stored as string':
                 qval = str([int(_) for _ in qval[2:].split(DELIM)])
+            else:
+                user_infer = True
         except:
           user_infer = True
+    else:
+        if qval.startswith("|"): qval = qval[1:]
 
     if user_infer:
         try:
