@@ -252,6 +252,23 @@ def compare_db_strings(str1, str2):
     if (len(splt1) < 3 or len(splt2) < 3): return False
     return (splt1[0] == splt2[0]) and (splt1[1] == splt2[1])
 
+def trim_comparator(value, comparators):
+
+    """
+    Check for a comparator value and trim it off if found
+    value -- Value to test
+    comparators -- List of comparators to test
+    """
+
+    value_new = value
+    result = None
+    for el in comparators:
+        if value.startswith(el[0]):
+            value_new = value[len(el[0]):]
+            result = el[1]
+            break
+    return value_new, result
+
 def interpret(query, qkey, qval, type_info):
 
     """
@@ -273,6 +290,10 @@ def interpret(query, qkey, qval, type_info):
 
     if type_info and not qval.startswith("|"):
         user_infer = False
+        qcombine = None
+
+        qval, comparator = trim_comparator(qval, [(">","$gt"),("<","$lt"), ("%","$in")])
+        
         try:
             if type_info == 'string':
                 pass #Already a string
@@ -286,6 +307,9 @@ def interpret(query, qkey, qval, type_info):
                 qval = str([int(_) for _ in qval[2:].split(DELIM)])
             else:
                 user_infer = True
+
+            if not user_infer and comparator: qval = {comparator:qval}
+
         except:
           user_infer = True
     else:
