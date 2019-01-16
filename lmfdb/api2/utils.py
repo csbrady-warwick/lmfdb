@@ -209,8 +209,6 @@ def default_projection(request):
     fields -- comma separated list of fields to include (exclude if keyword set)
 
     """
-    print('Seeking projection')
-    print(request.args.get('_fields'))
     try:
         fields = request.args.get('_fields').split(',')
         exclude = False
@@ -219,7 +217,6 @@ def default_projection(request):
         except:
             pass
         project = build_query_projection(fields, exclude = exclude)
-        print(project)
     except:
         project = None
     return project
@@ -269,6 +266,9 @@ def interpret(query, qkey, qval, type_info):
 
     from ast import literal_eval
 
+    qkey = qkey.replace('"','')
+    qval = qval.replace('"','')
+
     user_infer = True
 
     if type_info and not qval.startswith("|"):
@@ -282,7 +282,7 @@ def interpret(query, qkey, qval, type_info):
                 qval = float(qval)
             elif type_info == 'list of integers':
                 qval = [int(_) for _ in qval[2:].split(DELIM)]
-            elif type_info == 'ist of integers stored as string':
+            elif type_info == 'list of integers stored as string':
                 qval = str([int(_) for _ in qval[2:].split(DELIM)])
             else:
                 user_infer = True
