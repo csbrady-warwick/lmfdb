@@ -3,6 +3,7 @@ from lmfdb.api2 import __version__
 import json
 from bson.objectid import ObjectId
 import lmfdb.base as base
+from lmfdb.db_backend import db
 import lmfdb.inventory_app.inventory_viewer as inventory
 
 api_version = __version__
@@ -352,6 +353,16 @@ def simple_search(search_dict, projection):
     Perform a simple search from a request
     """
 
+    if search_dict['database']:
+        return simple_search_mongo(search_dict, projection)
+    else:
+        return simple_search_postgres(search_dict, projection)
+
+def simple_search_mongo(search_dict, projection):
+    """
+    Perform a simple search from a request
+    """
+
     try:
         offset = search_dict['view_start']
     except:
@@ -367,5 +378,28 @@ def simple_search(search_dict, projection):
     data = C[search_dict['database']][search_dict['collection']].find(search_dict['query'], projection).max_time_ms(10000)
     metadata['record_count'] = data.count()
     data_out = list(data.skip(offset).limit(rcount))
+    metadata['view_count'] = len(data_out)
+    return metadata, list(data_out), search_dict
+
+def simple_search_postgres(search_dict, projection):
+    """
+    Perform a simple search from a request
+    """
+
+    try:
+        offset = search_dict['view_start']
+    except:
+        offset = 0
+
+    try:
+        rcount = search_dict['max_count']
+    except:
+        rcount = 100
+
+    metadata = {}
+    C = db[search_dict['collection']]
+    data = C.search(search_dict['query'], projection = projection, limit = rcount, offset = offset)
+    metadata['record_count'] = data.count()
+    data_out = list(data)
     metadata['view_count'] = len(data_out)
     return metadata, list(data_out), search_dict

@@ -21,10 +21,12 @@ class searcher:
 
   def get_info(self):
       if (self._full_info): return self._full_info()
+      if (self._inv): return utils.get_filtered_fields(self._inv)
       return utils.get_filtered_fields(self.auto)
 
   def get_inventory(self):
       if(self._full_inventory): return self._full_inventory()
+      if (self._inv): return utils.get_filtered_fields(self._inv)
       return utils.get_filtered_fields(self.auto)
 
   def auto_search(self, request):
@@ -43,15 +45,16 @@ class searcher:
       if(self._full_search): return self._full_search(query, projection)
       return utils.simple_search(query, projection)
 
-  def __init__(self, human_name, desc, auto_search = None, full_info=None, full_inventory=None, full_search=None):
+  def __init__(self, human_name, desc, auto_search = None, full_info=None, full_inventory=None, full_search=None, inv=None ):
       self.human_name = human_name
       self.desc = desc
       self.auto = auto_search
+      self._inv = inv
       self._full_info = full_info
       self._full_inventory = full_inventory
       self._full_search = full_search
 
-def register_search_function(name, human_name, description, auto_search=None, full_info=None, full_inventory=None, full_search=None):
+def register_search_function(name, human_name, description, auto_search=None, full_info=None, full_inventory=None, full_search=None, inv=None):
     """
     Register a search function with the contextual API system
 
@@ -70,7 +73,7 @@ def register_search_function(name, human_name, description, auto_search=None, fu
 
     """
     global searchers
-    searchers[name] = searcher(human_name, description, auto_search = auto_search, full_info = full_info, full_inventory = full_inventory, full_search = full_search)
+    searchers[name] = searcher(human_name, description, auto_search = auto_search, full_info = full_info, full_inventory = full_inventory, full_search = full_search, inv=inv)
 
 def register_singleton(url, database, collection, key, simple_search = None, full_search = None):
     """
