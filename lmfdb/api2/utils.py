@@ -290,8 +290,6 @@ def interpret(query, qkey, qval, type_info):
 
     if type_info and not qval.startswith("|"):
         user_infer = False
-        qcombine = None
-
         qval, comparator = trim_comparator(qval, [(">","$gt"),("<","$lt"), ("%","$in")])
         
         try:

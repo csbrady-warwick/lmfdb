@@ -1,5 +1,3 @@
-import lmfdb.base as base
-import lmfdb.inventory_app.inventory_viewer as inventory
 import utils
 
 searchers = {}
