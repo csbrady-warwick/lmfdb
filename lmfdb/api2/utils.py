@@ -74,7 +74,7 @@ def build_api_records(api_key, record_count, r_c_e, view_start, view_count, reco
     record_count -- Total number of records returned by the query
     r_c_e -- Is the record count correct or just a placeholder
     view_start -- Point at which the current view starts in records
-    view_count -- Number of records in the current view. Must be less than max_count if max_count is specified
+    riew_count -- Number of records in the current view. Must be less than max_count if max_count is specified
     record_list -- Dictionary containing the records in the current view
 
     Keyword arguments:
@@ -112,8 +112,8 @@ def build_api_search(api_key, mddtuple, max_count=None, request = None):
     metadata = mddtuple[0]
     data = mddtuple[1]
     search_dict = mddtuple[2]
-    if metadata.get('error', False):
-        return build_api_error('Search unable to be completed', request = request)
+    if metadata.get('error_string', None):
+        return build_api_error(metadata['error_string'], request = request)
     return build_api_records(api_key, metadata['record_count'], metadata['correct_count'], 
         search_dict['view_start'], metadata['view_count'], data, max_count = max_count, request = request)
 
@@ -159,7 +159,7 @@ def build_api_error(string, request = None):
     string -- string to return as error
     request -- Flask request object to query for needed data
     """
-    return build_api_wrapper('GLOBAL', api_type_error, "", request)
+    return build_api_wrapper('GLOBAL', api_type_error, string, request)
 
 
 def build_description(objlist, name, desc, type, h_name, 
@@ -415,7 +415,14 @@ def simple_search_postgres(search_dict, projection=None):
     f_e_c = search_dict.get('correct_count', False)
     count_only = search_dict.get('count_only', False)
 
-    if not projection: projection = 1
+    if not projection: 
+        projection = 1
+    else:
+        #Strip out removal of mongo _id fields
+        p2 = {}
+        for el in projection:
+            if el != "_id": p2[el] = projection[el]
+        projection = p2
 
     metadata = {}
     C = db[search_dict['collection']]
@@ -424,11 +431,11 @@ def simple_search_postgres(search_dict, projection=None):
     try:
         data = C.search(search_dict['query'], projection = projection, limit = rcount, 
             offset = offset, info = info, force_exact_count = f_e_c, count_only = count_only)
-    except:
+    except Exception as e:
         data = []
         info['number'] = 0
         info['exact_count'] = False
-        metadata['error'] = True
+        metadata['error_string'] = str(e)
     metadata['record_count'] = info['number']
     metadata['correct_count'] = info['exact_count']
     if data:
