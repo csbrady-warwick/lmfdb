@@ -200,6 +200,21 @@ def get_filtered_fields(coll_pair):
 
     return field_list
 
+def patch_up_old_inventory(data, table_name):
+    """
+    Patch old inventory data to use new database information
+    data -- old inventory data
+    table_name -- Name of table in postgres database
+    """
+
+    table = db[table_name]
+    result = {}
+    for el in table._search_cols:
+        try:
+            result[el] = data[el]
+        except KeyError:
+            pass
+    return result
 
 def default_projection(request):
     """
@@ -348,7 +363,7 @@ def interpret(query, qkey, qval, type_info):
     query[qkey] = qval
 
 
-def simple_search(search_dict, projection):
+def simple_search(search_dict, projection=None):
     """
     Perform a simple search from a request
     """
@@ -358,7 +373,7 @@ def simple_search(search_dict, projection):
     else:
         return simple_search_postgres(search_dict, projection)
 
-def simple_search_mongo(search_dict, projection):
+def simple_search_mongo(search_dict, projection=None):
     """
     Perform a simple search from a request
     """
@@ -381,7 +396,7 @@ def simple_search_mongo(search_dict, projection):
     metadata['view_count'] = len(data_out)
     return metadata, list(data_out), search_dict
 
-def simple_search_postgres(search_dict, projection):
+def simple_search_postgres(search_dict, projection=None):
     """
     Perform a simple search from a request
     """
@@ -396,10 +411,13 @@ def simple_search_postgres(search_dict, projection):
     except:
         rcount = 100
 
+    if not projection: projection = 1
+
     metadata = {}
     C = db[search_dict['collection']]
-    data = C.search(search_dict['query'], projection = projection, limit = rcount, offset = offset)
-    metadata['record_count'] = data.count()
-    data_out = list(data)
+    info={}
+    data = C.search(search_dict['query'], projection = projection, limit = rcount, offset = offset, info = info)
+    metadata['record_count'] = info['number']
+    data_out = list(list(data))
     metadata['view_count'] = len(data_out)
     return metadata, list(data_out), search_dict

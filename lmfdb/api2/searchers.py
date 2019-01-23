@@ -5,14 +5,6 @@ singletons = {}
 
 class searcher:
 
-  _full_info = None
-  _full_inventory = None
-  _full_search = None
-
-  human_name = None
-  desc = None
-  auto = None
-
   def get_name(self):
       return self.human_name
 
@@ -21,12 +13,12 @@ class searcher:
 
   def get_info(self):
       if (self._full_info): return self._full_info()
-      if (self._inv): return utils.get_filtered_fields(self._inv)
+      if (self._inv): return utils.patch_up_old_inventory(utils.get_filtered_fields(self._inv), self.auto[1])
       return utils.get_filtered_fields(self.auto)
 
   def get_inventory(self):
       if(self._full_inventory): return self._full_inventory()
-      if (self._inv): return utils.get_filtered_fields(self._inv)
+      if (self._inv): return utils.patch_up_old_inventory(utils.get_filtered_fields(self._inv), self.auto[1])
       return utils.get_filtered_fields(self.auto)
 
   def auto_search(self, request):
@@ -73,6 +65,8 @@ def register_search_function(name, human_name, description, auto_search=None, fu
 
     """
     global searchers
+    if auto_search:
+        if isinstance(auto_search,str): auto_search=[None, auto_search]
     searchers[name] = searcher(human_name, description, auto_search = auto_search, full_info = full_info, full_inventory = full_inventory, full_search = full_search, inv=inv)
 
 def register_singleton(url, database, collection, key, simple_search = None, full_search = None):
