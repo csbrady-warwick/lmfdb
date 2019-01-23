@@ -14,5 +14,5 @@ def body_class():
 
 app.register_blueprint(abvar_page, url_prefix="/Variety/Abelian")
 
-register_search_function("elliptic_curves_q", "Elliptic Curves over Rationals",
-    "Search over elliptic curves defined over rationals", auto_search=['elliptic_curves','curves'])
+register_search_function("abvar", "Abelian Varieties",
+    "Search over Abelian varities", auto_search='av_fqisog', inv=['abvar','fq_isog'])

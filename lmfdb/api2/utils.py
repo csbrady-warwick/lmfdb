@@ -39,11 +39,13 @@ def create_search_dict(database='', collection='', query=None, view_start=0, req
         query_alpha = query
 
     search = {'database':database, 'collection':collection, 'query':query_alpha, 'view_start':view_start, 
-        'max_count':100}
+        'max_count':100, 'correct_count':False, 'count_only':False}
 
     if request:
         search['view_start']=int(request.args.get('_view_start', search['view_start']))
         search['max_count'] = min(int(request.args.get('_max_count', search['max_count'])), 100)
+        search['correct_count'] = bool(request.args.get('_correct_count', search['correct_count']))
+        search['count_only'] = bool(request.args.get('_count_only', search['count_only']))
     return search
 
 def build_api_wrapper(api_key, api_type, data, request = None):
@@ -61,7 +63,7 @@ def build_api_wrapper(api_key, api_type, data, request = None):
         'api_version':api_version, 'type':api_type, 'has_api2':False, 'data':data},
         indent=4, sort_keys=False, cls = APIEncoder)
 
-def build_api_records(api_key, record_count, view_start, view_count, record_list, \
+def build_api_records(api_key, record_count, r_c_e, view_start, view_count, record_list, \
                         max_count=None, request = None):
     """
     Build an API object from a set of records. Automatically calculates point to start view to get next record.
@@ -70,6 +72,7 @@ def build_api_records(api_key, record_count, view_start, view_count, record_list
     Arguments:
     api_key -- Named API key as registered with register_search_function
     record_count -- Total number of records returned by the query
+    r_c_e -- Is the record count correct or just a placeholder
     view_start -- Point at which the current view starts in records
     view_count -- Number of records in the current view. Must be less than max_count if max_count is specified
     record_list -- Dictionary containing the records in the current view
@@ -81,8 +84,11 @@ def build_api_records(api_key, record_count, view_start, view_count, record_list
 
     """
     view_count = min(view_count, record_count-view_start)
-    next_block = view_start + view_count if view_start + view_count < record_count else -1
-    keys = {"record_count":record_count, "view_start":view_start, "view_count":view_count, \
+    next_block = view_start + view_count if (view_start + view_count < record_count or not r_c_e) else -1
+    if view_count == 0 :
+        next_block = -1
+        view_start = -1
+    keys = {"record_count":record_count, "record_count_correct":r_c_e, "view_start":view_start, "view_count":view_count, \
             "view_next":next_block,"records":record_list}
     if max_count: keys['api_max_count'] = max_count
     return build_api_wrapper(api_key, api_type_records, keys, request)
@@ -106,8 +112,10 @@ def build_api_search(api_key, mddtuple, max_count=None, request = None):
     metadata = mddtuple[0]
     data = mddtuple[1]
     search_dict = mddtuple[2]
-    return build_api_records(api_key, metadata['record_count'], search_dict['view_start'], 
-        metadata['view_count'], data, max_count = max_count, request = request)
+    if metadata.get('error', False):
+        return build_api_error('Search unable to be completed', request = request)
+    return build_api_records(api_key, metadata['record_count'], metadata['correct_count'], 
+        search_dict['view_start'], metadata['view_count'], data, max_count = max_count, request = request)
 
 def build_api_searchers(names, human_names, descriptions, request = None):
 
@@ -148,7 +156,7 @@ def build_api_error(string, request = None):
 
     """
     Build an API response for an error
-    api_key -- string to return as error
+    string -- string to return as error
     request -- Flask request object to query for needed data
     """
     return build_api_wrapper('GLOBAL', api_type_error, "", request)
@@ -213,7 +221,7 @@ def patch_up_old_inventory(data, table_name):
         try:
             result[el] = data[el]
         except KeyError:
-            pass
+            result[el] = "Missing"
     return result
 
 def default_projection(request):
@@ -392,6 +400,7 @@ def simple_search_mongo(search_dict, projection=None):
     C = base.getDBConnection()
     data = C[search_dict['database']][search_dict['collection']].find(search_dict['query'], projection).max_time_ms(10000)
     metadata['record_count'] = data.count()
+    metadata['correct_count'] = True
     data_out = list(data.skip(offset).limit(rcount))
     metadata['view_count'] = len(data_out)
     return metadata, list(data_out), search_dict
@@ -401,23 +410,29 @@ def simple_search_postgres(search_dict, projection=None):
     Perform a simple search from a request
     """
 
-    try:
-        offset = search_dict['view_start']
-    except:
-        offset = 0
-
-    try:
-        rcount = search_dict['max_count']
-    except:
-        rcount = 100
+    offset = search_dict.get('view_start', 0)
+    rcount = search_dict.get('max_count', 100)
+    f_e_c = search_dict.get('correct_count', False)
+    count_only = search_dict.get('count_only', False)
 
     if not projection: projection = 1
 
     metadata = {}
     C = db[search_dict['collection']]
+    qdict = {}
     info={}
-    data = C.search(search_dict['query'], projection = projection, limit = rcount, offset = offset, info = info)
+    try:
+        data = C.search(search_dict['query'], projection = projection, limit = rcount, 
+            offset = offset, info = info, force_exact_count = f_e_c, count_only = count_only)
+    except:
+        data = []
+        info['number'] = 0
+        info['exact_count'] = False
+        metadata['error'] = True
     metadata['record_count'] = info['number']
-    data_out = list(list(data))
+    metadata['correct_count'] = info['exact_count']
+    if data:
+      data_out = list(list(data))
+    else: data_out = []
     metadata['view_count'] = len(data_out)
     return metadata, list(data_out), search_dict

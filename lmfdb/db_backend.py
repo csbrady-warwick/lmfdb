@@ -808,7 +808,7 @@ class PostgresTable(PostgresBase):
             else:
                 return {k:v for k,v in zip(search_cols, rec) if v is not None}
 
-    def search(self, query={}, projection=1, limit=None, offset=0, sort=None, info=None, silent=False):
+    def search(self, query={}, projection=1, limit=None, offset=0, sort=None, info=None, silent=False, force_exact_count=False, count_only = False):
         """
         One of the two main public interfaces for performing SELECT queries,
         intended for usage from search pages where multiple results may be returned.
@@ -834,6 +834,8 @@ class PostgresTable(PostgresBase):
         - ``sort`` -- a sort order.  Either None or a list of strings (which are interpreted as column names in the ascending direction) or of pairs (column name, 1 or -1).  If not specified, will use the default sort order on the table.  If you want the result unsorted, use [].
         - ``info`` -- a dictionary, which is updated with values of 'query', 'count', 'start', 'exact_count' and 'number'.  Optional.
         - ``silent`` -- a boolean.  If True, slow query warnings will be suppressed.
+        - ``force_exact_count`` -- a boolean. If True exact count will always be given
+        - ``count_only`` -- a boolean. If True then the exact count is calculated and the info object is populated. The function returns None
 
         WARNING:
 
@@ -885,18 +887,27 @@ class PostgresTable(PostgresBase):
                 qstr, values = self._build_query(query, prelimit, offset, sort)
             else:
                 qstr, values = self._build_query(query, limit, offset, sort)
-        selecter = SQL("SELECT {0} FROM {1}{2}").format(vars, Identifier(self.search_table), qstr)
+        selecter = SQL("SELECT {0} AS count FROM {1}{2}").format(vars, Identifier(self.search_table), qstr)
         cur = self._execute(selecter, values, silent=silent, slow_note=(self.search_table, "analyze", query, projection, limit, offset))
+
+        if count_only:
+            if info is not None:
+                info['query'] = dict(query)
+                info['number'] = self.count(query)
+                info['exact_count'] = True
+                return None
         if limit is None:
             if info is not None:
                 # caller is requesting count data
                 info['number'] = self.count(query)
             return self._search_iterator(cur, search_cols, extra_cols, id_offset, projection)
-        if nres is None:
+        if nres is None and not force_exact_count:
             exact_count = (cur.rowcount < prelimit)
             nres = offset + cur.rowcount
         else:
             exact_count = True
+            if force_exact_count: nres = self.count(query)
+            
         res = cur.fetchmany(limit)
         res = list(self._search_iterator(res, search_cols, extra_cols, id_offset, projection))
         if info is not None:
