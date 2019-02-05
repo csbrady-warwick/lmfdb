@@ -84,10 +84,14 @@ def parse_collection_info_to_json(table, retval = None, date = None):
 
     """ Front end routine to create JSON information about a collection """
 
+    name_list = table.split("_",1)
+    db = name_list[0]
+    coll = name_list[1]
+
     json_raw = _jsonify_collection_info(table)
-    json_wrap = {table:json_raw}
+    json_wrap = {db:{coll:json_raw}}
     if not date:
         date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-    json_wrap[table]['scrape_date'] = date
+    json_wrap[db][coll]['scrape_date'] = date
     if retval is not None: retval['data'] = json_wrap
     return json_wrap
