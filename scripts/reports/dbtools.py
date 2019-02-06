@@ -17,4 +17,4 @@ def get_pg_sample_record(table, field_name):
         returns sample record
     """
 
-    return db[table].search({str(field_name):{'$exists':True}}, limit = 1)[0]
+    return db[table].lucky({str(field_name):{'$exists':True}})

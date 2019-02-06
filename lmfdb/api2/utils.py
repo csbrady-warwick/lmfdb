@@ -327,6 +327,8 @@ def interpret(query, qkey, qval, type_info):
                 qval = [int(_) for _ in qval[2:].split(DELIM)]
             elif type_info == 'list of integers stored as string':
                 qval = str([int(_) for _ in qval[2:].split(DELIM)])
+            elif type_info == 'boolean':
+                qval = bool(qval)
             else:
                 user_infer = True
 
