@@ -8,6 +8,7 @@ from inventory_live_data import get_lockout_state
 from scrape_helpers import check_scrapes_by_coll_id
 from copy import deepcopy
 from lmfdb.utils import comma
+from lmfdb.db_backend import db
 
 #Functions to populate viewer pages
 
@@ -18,17 +19,11 @@ def is_valid_db(db_name):
 def is_valid_db_collection(db_name, collection_name):
     """Check if db and collection name (if not None) exist"""
     try:
-        inv.setup_internal_client()
-        db = inv.int_client[inv.ALL_STRUC.name]
-    except Exception as e:
-        raise ih.ConnectOrAuthFail("")
-        return False
-    try:
-        db_id = idc.get_db_id(db, db_name)
+        db_id = idc.get_db_id(db_name)
         if not db_id['exist']:
             return False
         if collection_name:
-            coll_id = idc.get_coll_id(db, db_id['id'], collection_name)
+            coll_id = idc.get_coll_id(db_id['id'], collection_name)
             if not coll_id['exist']:
                 return False
     except Exception as e:
@@ -40,18 +35,12 @@ def get_nicename(db_name, collection_name):
     """Return the nice_name string for given db/coll pair"""
 
     try:
-        inv.setup_internal_client()
-        db = inv.int_client[inv.ALL_STRUC.name]
-    except Exception as e:
-        raise ih.ConnectOrAuthFail("")
-        return None
-    try:
         if collection_name:
-            db_id = idc.get_db_id(db, db_name)
-            coll_rec = idc.get_coll(db, db_id['id'], collection_name)
+            db_id = idc.get_db_id(db_name)
+            coll_rec = idc.get_coll(db_id['id'], collection_name)
             nice_name = coll_rec['data']['nice_name']
         else:
-            db_rec = idc.get_db(db, db_name)
+            db_rec = idc.get_db(db_name)
             #print db_rec
             nice_name = db_rec['data']['nice_name']
         return nice_name
@@ -60,29 +49,28 @@ def get_nicename(db_name, collection_name):
         #Can't return nice name so return None
         return None
 
-def gen_retrieve_db_listing(db, db_name=None):
+def gen_retrieve_db_listing(db_name=None):
     """Retrieve listing for all or given database.
 
-    db -- LMFDB connection to inventory db
     db_name -- If absent, get listing of all dbs, if present, get listing of collections in named db
 
     NB connection must have been setup and checked!
     """
 
-    table_name = inv.ALL_STRUC.db_ids[inv.STR_NAME]
-    coll_name = inv.ALL_STRUC.coll_ids[inv.STR_NAME]
+    table_name = 'inv_dbs'
+    coll_name = 'inv_tables'
     try:
         table = db[table_name]
         if db_name is None:
             query = {}
-            records = list(table.find(query, {'_id': 1, 'name' : 1, 'nice_name':1}))
-            records = [(rec['name'], rec['nice_name'], idc.count_colls(db, rec['_id'])) for rec in records]
+            records = list(table.search(query, {'_id': 1, 'name' : 1, 'nice_name':1}))
+            records = [(rec['name'], rec['nice_name'], idc.count_colls(rec['_id'])) for rec in records]
         else:
-            _id = table.find_one({inv.STR_NAME:db_name})['_id']
+            _id = idc.get_db_id(db_name)['id']
             table = db[coll_name]
-            query = {inv.ALL_STRUC.coll_ids[inv.STR_CONTENT][1]:_id}
-            records = list(table.find(query, {'_id': 1, 'name' : 1, 'nice_name':1, 'status':1}))
-            records = [(rec['name'], rec['nice_name'], idc.count_records_and_types(db, rec['_id'], as_string=True), ih.code_to_status(rec['status']), check_locked(db, rec['_id'])) for rec in records]
+            query = {'db_id':_id}
+            records = list(table.search(query, {'_id': 1, 'name' : 1, 'nice_name':1, 'status':1}))
+            records = [(rec['name'], rec['nice_name'], 0, ih.code_to_status(rec['status']), False) for rec in records]
     except Exception as e:
         inv.log_dest.error("Something went wrong retrieving db info "+str(e))
         records = None
@@ -94,14 +82,7 @@ def gen_retrieve_db_listing(db, db_name=None):
 def retrieve_db_listing(db_name=None):
     """Retrieve listing for all or given database."""
 
-    inv.setup_internal_client()
-    try:
-        db = inv.int_client[inv.ALL_STRUC.name]
-    except Exception:
-        raise ih.ConnectOrAuthFail("")
-        return None
-
-    return gen_retrieve_db_listing(db, db_name)
+    return gen_retrieve_db_listing(db_name)
 
 def get_edit_list(db_name=None):
     """Retrieve listing for all or given database."""
@@ -109,32 +90,29 @@ def get_edit_list(db_name=None):
     listing = retrieve_db_listing(db_name)
     return listing
 
-def retrieve_description(db, requested_db, requested_coll):
+def retrieve_description(requested_db, requested_coll):
     """Retrieve inventory for named collection
 
-    db -- LMFDB connection to inventory db
     requested_db -- name of database the named collection belongs to
     requested_coll -- name of collection to fetch inventory for
     """
 
     try:
-        _id = idc.get_db(db, requested_db)['id']
-        coll_record = idc.get_coll(db, _id, requested_coll)
+        _id = idc.get_db(requested_db)['id']
+        coll_record = idc.get_coll(_id, requested_coll)
         _c_id = coll_record['id']
         info = coll_record['data']['INFO']
 
         info['nice_name'] = coll_record['data']['nice_name']
         specials = {'INFO': info, 'NOTES':coll_record['data']['NOTES']}
-        request = {'coll_id': _c_id}
+        request = {'table_id': _c_id}
 
-        fields_auto = inv.ALL_STRUC.get_fields('auto')
-        fields_human = inv.ALL_STRUC.get_fields('human')
+        fields_auto = 'inv_fields_auto'
+        fields_human ='inv_fields_human'
 
-        collection = db[fields_auto[inv.STR_NAME]]
-        descr_auto = collection.find(request)
+        descr_auto = db[fields_auto].search(request)
 
-        collection = db[fields_human[inv.STR_NAME]]
-        descr_human = collection.find(request)
+        descr_human = db[fields_human].search(request)
 
         return {'data':patch_records(descr_auto, descr_human), 'specials': specials, 'scrape_date':coll_record['data']['scan_date']}
 
@@ -167,10 +145,9 @@ def patch_records(first, second):
                 dic_patched[key][field] = ''
     return dic_patched
 
-def retrieve_records(db, requested_db, requested_coll):
+def retrieve_records(requested_db, requested_coll):
     """Retrieve inventory for named collection
 
-    db -- LMFDB connection to inventory db
     requested_db -- name of database the named collection belongs to
     requested_coll -- name of collection to fetch inventory for
     """
@@ -220,16 +197,10 @@ def get_inventory_for_display(full_name):
 
     full_name -- fully qualified name, in form db.coll
     """
-    try:
-        inv.setup_internal_client()
-        db = inv.int_client[inv.ALL_STRUC.name]
-    except Exception as e:
-        raise ih.ConnectOrAuthFail("")
-        return None
 
     try:
         parts = ih.get_description_key_parts(full_name)
-        records = retrieve_description(db, parts[0], parts[1])
+        records = retrieve_description(parts[0], parts[1])
     except Exception as e:
         inv.log_dest.error("Unable to get requested inventory "+ str(e))
         return {'data': None, 'specials': None, 'scrape_date': None}
@@ -293,17 +264,11 @@ def get_indices_for_display(full_name):
 def collate_collection_info(db_name):
     """Fetches and collates viewable info for collections in named db
     """
-    try:
-        inv.setup_internal_client()
-        db = inv.int_client[inv.ALL_STRUC.name]
-    except Exception:
-        raise ih.ConnectOrAuthFail("")
-        return None
 
-    db_info = idc.get_db(db, db_name)
+    db_info = idc.get_db(db_name)
     if not db_info['exist']:
         return
-    colls_info = idc.get_all_colls(db, db_info['id'])
+    colls_info = idc.get_all_colls(db_info['id'])
 
     for coll in colls_info:
         rec_info = idc.count_records_and_types(db, coll['_id'])

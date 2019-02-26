@@ -6,31 +6,21 @@ from lmfdb.db_backend import db
 
 #Table creation routines -------------------------------------------------------------
 
-def get_db_id(inv_db, name):
+def get_db_id(name):
     """ Get database id by name
 
-    inv_db -- Connection to LMFDB inventory database
     name -- Name of db to retrieve
     """
 
-    try:
-        table_name = inv.ALL_STRUC.db_ids[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+ str(e))
-        return {'err':True, 'id':0, 'exist':False}
-
-    db_fields = inv.ALL_STRUC.db_ids[inv.STR_CONTENT]
-    record = {db_fields[1]:name}
-    #If record exists, just return its ID
-    exists_at = coll.find_one(record)
-    if exists_at is not None:
-        _id = exists_at['_id']
+    table_to_search = "inv_dbs"
+    exists_at = db[table_to_search].search({'name':name}, limit=1)
+    if len(exists_at) > 0:
+        _id = exists_at[0]['_id']
     else:
         _id = 0
-    return {'err':False, 'id':_id, 'exist':(exists_at is not None)}
+    return {'err':False, 'id':_id, 'exist':(len(exists_at)>0)}
 
-def get_coll_id(inv_db, db_id, name):
+def get_coll_id(db_id, name):
     """ Get collection id by name.
 
     inv_db -- Connection to LMFDB inventory database
@@ -38,182 +28,103 @@ def get_coll_id(inv_db, db_id, name):
     name -- Name of collection to retrieve
     """
 
-    try:
-        table_name = inv.ALL_STRUC.coll_ids[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+str(e))
-        return {'err':True, 'id':0, 'exist':False}
-
-    coll_fields = inv.ALL_STRUC.coll_ids[inv.STR_CONTENT]
-    record = {coll_fields[1]:db_id, coll_fields[2]:name}
-    exists_at = coll.find_one(record)
-    if exists_at is not None:
-        _id = exists_at['_id']
+    table_to_search = "inv_tables"
+    exists_at = db[table_to_search].search({'db_id':db_id, 'name':name}, limit=1)
+    if len(exists_at) > 0:
+        _id = exists_at[0]['_id']
     else:
         _id = 0
-    return {'err':False, 'id':_id, 'exist':(exists_at is not None)}
+
+    return {'err':False, 'id':_id, 'exist':(len(exists_at)>0)}
 
 def get_db_name(inv_db, db_id):
     """Get db name from db id"""
-    try:
-        table_name = inv.ALL_STRUC.db_ids[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+ str(e))
-        return {'err':True, 'id':0, 'exist':False}
 
-    db_fields = inv.ALL_STRUC.db_ids[inv.STR_CONTENT]
-    record = {db_fields[0]:db_id}
-    #If record exists, just return its ID
-    exists_at = coll.find_one(record)
-    if exists_at is not None:
-        name = exists_at['name']
+    table_to_search = "inv_dbs"
+    exists_at = db[table_to_search].search({'_id':db_id}, limit=1)
+    if len(exists_at) > 0:
+        name = exists_at[0]['name']
     else:
         name = ''
-    return {'err':False, 'name':name, 'exist':(exists_at is not None)}
+    return {'err':False, 'name':name, 'exist':(len(exists_at)>0)}
 
-def get_coll_name(inv_db, coll_id):
+def get_coll_name(coll_id):
     """ Get collection name from id.
 
-    inv_db -- Connection to LMFDB inventory database
     coll_id -- ID of collection to retrieve
     """
 
-    try:
-        table_name = inv.ALL_STRUC.coll_ids[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+str(e))
-        return {'err':True, 'id':0, 'exist':False}
-
-    coll_fields = inv.ALL_STRUC.coll_ids[inv.STR_CONTENT]
-    record = {coll_fields[0]:coll_id}
-    exists_at = coll.find_one(record)
-    if exists_at is not None:
-        name = exists_at['name']
+    table_to_search = "inv_tables"
+    exists_at = db[table_to_search].search({'_id':coll_id}, limit=1)
+    if len(exists_at) > 0:
+        name = exists_at[0]['name']
     else:
         name = ''
-    return {'err':False, 'name':name, 'exist':(exists_at is not None)}
+    return {'err':False, 'name':name, 'exist':(len(exists_at)>0)}
 
-
-def get_db(inv_db, name):
+def get_db(name):
     """ Get database record by name """
 
-    try:
-        table_name = inv.ALL_STRUC.db_ids[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+ str(e))
-        return {'err':True, 'id':0, 'exist':False}
+    table_to_search = "inv_dbs"
+    exists_at = db[table_to_search].search({'name':name}, limit=1)
+    if len(exists_at) > 0:
+        _id = exists_at[0]['_id']
+        data = exists_at[0]
+        err = False
+    else:
+        _id = 0
+        data = None
+        err = True
 
-    db_fields = inv.ALL_STRUC.db_ids[inv.STR_CONTENT]
-    record = {db_fields[1]:name}
-    data = coll.find_one(record)
-    if data is None:
-        inv.log_dest.error("Error getting db "+str(name))
-        return {'err':True, 'id':0, 'exist':False, 'data':None}
-
-    return {'err':False, 'id':data['_id'], 'exist':True, 'data':data}
+    return {'err':err, 'id':_id, 'exist':(len(exists_at)>0), 'data':data}
 
 def set_db(inv_db, name, nice_name):
     """ Insert a new DB with given name and optional nice name (defaults to equal name), or return id if this exists. """
-#TODO make nice_name parameter optional
-    try:
-        table_name = inv.ALL_STRUC.db_ids[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+str(e))
-        return {'err':True, 'id':0, 'exist':False}
 
-    db_fields = inv.ALL_STRUC.db_ids[inv.STR_CONTENT]
-    record = {db_fields[1]:name}
-    #If record exists, just return its ID
-    exists_at = coll.find_one(record)
-    if exists_at is not None:
-        inv.log_dest.debug("DB exists")
-        _id = exists_at['_id']
-    else:
-        record[db_fields[2]] = nice_name
-        try:
-            _id = coll.insert(record)
-        except Exception as e:
-            inv.log_dest.error("Error inserting new record" +str(e))
-            return {'err':True, 'id':0, 'exist':False}
-
-    return {'err':False, 'id':_id, 'exist':(exists_at is not None)}
+    return {'err':True, 'id':_id, 'exist':False}
 
 def update_db(inv_db, db_id, name=None, nice_name=None):
     """"Update DB name or nice_name info by db id"""
-    try:
-        table_name = inv.ALL_STRUC.db_ids[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+str(e))
-        return {'err':True, 'id':0, 'exist':False}
 
-    db_fields = inv.ALL_STRUC.db_ids[inv.STR_CONTENT]
-    #Look up by Id
-    record = {db_fields[0]:db_id}
-    exists_at = coll.find_one(record)
+    return {'err':True, 'id':db_id, 'exist':False}
 
-    if exists_at is None:
-        inv.log_dest.debug("DB does not exist")
-        return {'err':True, 'id':0, 'exist':False}
-
-    else:
-        rec_set = {}
-        if name is not None:
-            rec_set[db_fields[1]] = name
-        if nice_name is not None:
-            rec_set[db_fields[2]] = nice_name
-        if rec_set:
-            return update_and_check(inv_db[table_name], record, rec_set)
-        else:
-            return {'err':False, 'id':db_id, 'exist':True}
-
-def get_coll(inv_db, db_id, name):
+def get_coll(db_id, name):
     """Return a collection entry.
 
-    inv_db -- Connection to LMFDB inventory database
     db_id -- ID of db this collection is part of
     name -- Collection name to return
     """
-    try:
-        table_name = inv.ALL_STRUC.coll_ids[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+str(e))
-        return {'err':True, 'id':0, 'exist':False, 'data':None}
-    coll_fields = inv.ALL_STRUC.coll_ids[inv.STR_CONTENT]
-    rec_find = {coll_fields[1]:db_id, coll_fields[2]:name}
 
-    try:
-        data = coll.find_one(rec_find)
-        return {'err':False, 'id':data['_id'], 'exist':True, 'data':data}
-    except Exception as e:
-        inv.log_dest.error("Error getting data "+str(e))
-        return {'err':True, 'id':0, 'exist':True, 'data':None}
+    table_to_search = "inv_tables"
+    exists_at = db[table_to_search].search({'name':name, 'db_id':db_id}, limit=1)
+    if len(exists_at) > 0:
+        _id = exists_at[0]['_id']
+        data = exists_at[0]
+        err = False
+    else:
+        _id = 0
+        data = None
+        err = True
 
-def get_coll_by_id(inv_db, id):
+    return {'err':err, 'id':_id, 'exist':(len(exists_at)>0), 'data':data}
+
+def get_coll_by_id(id):
     """Return a collection entry.
 
-    inv_db -- Connection to LMFDB inventory database
     id -- ID of collection
     """
-    try:
-        table_name = inv.ALL_STRUC.coll_ids[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+str(e))
-        return {'err':True, 'id':0, 'exist':False, 'data':None}
+    table_to_search = "inv_tables"
+    exists_at = db[table_to_search].search({'_id':id}, limit=1)
+    if len(exists_at) > 0:
+        _id = exists_at[0]['_id']
+        data = exists_at[0]
+        err = False
+    else:
+        _id = 0
+        data = None
+        err = True
 
-    try:
-        data = coll.find_one({'_id':id})
-        return {'err':False, 'id':id, 'exist':True, 'data':data}
-    except Exception as e:
-        inv.log_dest.error("Error getting data "+str(e))
-        return {'err':True, 'id':0, 'exist':True, 'data':None}
+    return {'err':err, 'id':_id, 'exist':(len(exists_at)>0), 'data':data}
 
 def set_coll(inv_db, db_id, name, nice_name, notes, info, status):
     """Create or update a collection entry.
@@ -337,30 +248,26 @@ def set_coll_status(inv_db, coll_id, status):
 
     return update_and_check(coll, rec_find, rec_set)
 
-def get_field(inv_db, coll_id, name, type='auto'):
+def get_field(coll_id, name, type='auto'):
     """ Return a fields entry.
 
-    inv_db -- LMFDB connection to inventory db
     coll_id -- ID of collection field belongs to
     name -- The lmfdb key to fetch
     type -- Specifies human or autogenerated table
     """
-    #fields_auto = {STR_NAME : 'fields_auto', STR_CONTENT : ['_id', 'coll_id', 'name', 'data']}
-    try:
-        table_name = inv.ALL_STRUC.get_fields(type)[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+ str(e))
-        return {'err':True, 'id':0, 'exist':False}
-    fields_fields = inv.ALL_STRUC.get_fields(type)[inv.STR_CONTENT]
-    rec_find = {fields_fields[1]:coll_id, fields_fields[2]:name}
-    try:
-        data = coll.find_one(rec_find)
-        return {'err':False, 'id':data['_id'], 'exist':True, 'data':data}
-    except Exception as e:
-        #Unable to get is not a fatal error
-        inv.log_dest.info("Error getting data for "+name+': '+str(e))
-        return {'err':True, 'id':0, 'exist':True, 'data':None}
+
+    table_to_search = "inv_fields_"+type
+    exists_at = db[table_to_search].search({'name':name, 'table_id':coll_id}, limit=1)
+    if len(exists_at) > 0:
+        _id = exists_at[0]['_id']
+        data = exists_at[0]
+        err = False
+    else:
+        _id = 0
+        data = None
+        err = True
+
+    return {'err':err, 'id':_id, 'exist':(len(exists_at)>0), 'data':data}
 
 def set_field(inv_db, coll_id, name, data, type='auto'):
     """ Add or update a fields entry.
@@ -409,124 +316,6 @@ def update_field(inv_db, coll_id, item, field, content, type='auto'):
     rec_set = {fields_fields[3]+'.'+field: content}
 
     return update_and_check(coll, rec_find, rec_set)
-
-def get_record(inv_db, coll_id, hash_str):
-    """ Return a record entry.
-
-    inv_db -- LMFDB connection to inventory db
-    coll_id -- ID of collection field belongs to
-    hash -- The hash of the record to fetch
-    """
-    #record_types = {STR_NAME : 'records', STR_CONTENT :['_id', 'coll_id', 'hash', 'name', 'descrip', 'fields', 'count']}
-    try:
-        table_name = inv.ALL_STRUC.record_types[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+ str(e))
-        return {'err':True, 'id':0, 'exist':False}
-    records_fields = inv.ALL_STRUC.record_types[inv.STR_CONTENT]
-    rec_find = {records_fields[1]:coll_id, records_fields[2]:hash_str}
-    try:
-        data = coll.find_one(rec_find)
-        return {'err':False, 'id':data['_id'], 'exist':True, 'data':data}
-    except Exception as e:
-        return {'err':True, 'id':0, 'exist':False, 'data':None}
-
-def get_all_records(inv_db, coll_id):
-    """ Return a list of all records for coll_id.
-
-    inv_db -- LMFDB connection to inventory db
-    coll_id -- ID of collection field belongs to
-    """
-    #record_types = {STR_NAME : 'records', STR_CONTENT :['_id', 'coll_id', 'hash', 'name', 'descrip', 'fields', 'count']}
-    try:
-        table_name = inv.ALL_STRUC.record_types[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+ str(e))
-        return {'err':True, 'id':0, 'exist':False}
-    records_fields = inv.ALL_STRUC.record_types[inv.STR_CONTENT]
-    rec_find = {records_fields[1]:coll_id}
-    try:
-        data = list(coll.find(rec_find, {'_id': 0, 'coll_id' : 0}))
-        return {'err':False, 'id':-1, 'exist':True, 'data':data}
-    except Exception as e:
-        inv.log_dest.error("Error getting data "+str(e))
-        return {'err':True, 'id':0, 'exist':True, 'data':None}
-
-def set_record(inv_db, coll_id, data, type='auto'):
-    """ Add or update a record entry.
-
-    inv_db -- LMFDB connection to inventory db
-    coll_id -- ID of collection record belongs to
-    data -- Data for this record. If type=auto, must be dict with 'schema' and 'count' fields. If type=human, must contain 'hash' giving the hashed schema, and can also contain a 'name' entry which itself contains 'name' and optionally 'description'
-    type -- Type of record (dictates expected data format)
-    """
-    #record_types = {STR_NAME : 'records', STR_CONTENT :['_id', 'coll_id', 'hash', 'name', 'descrip', 'fields', 'count']}
-
-    try:
-        table_name = inv.ALL_STRUC.record_types[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+str(e))
-        return {'err':True, 'id':0, 'exist':False}
-
-    records_fields = inv.ALL_STRUC.record_types[inv.STR_CONTENT]
-    if type == 'auto':
-        #Generate the hash
-        hash = ih.hash_record_schema(data['schema'])
-        rec_find = {records_fields[1]:coll_id, records_fields[2]:hash}
-        rec_entry = get_record(inv_db, coll_id, hash)
-        if rec_entry['exist']:
-            rec_set = {records_fields[6]:data['count']}
-        else:
-            rec_set = rec_find
-            rec_set[records_fields[3]] = None
-            rec_set[records_fields[4]] = None
-            rec_set[records_fields[5]] = data['schema']
-            rec_set[records_fields[6]] = data['count']
-        return upsert_and_check(coll, rec_find, rec_set)
-    elif type == 'human':
-        #Added data for records is the known hash for lookup, a "name" and "description" field
-        human_data = data
-        if 'description' not in human_data:
-            human_data['description'] = ''
-        rec_find = {records_fields[1]:coll_id, records_fields[2]:data['hash']}
-        rec_set = {records_fields[3]:ih.null_empty_field(human_data['name']), records_fields[4]:ih.null_empty_field(human_data['description'])}
-        #Should add human info IFF records exists
-        return update_and_check(coll, rec_find, rec_set)
-
-def update_record_description(inv_db, coll_id, data):
-    """Update the 'human' entered info for a record
-    i.e. the name and description fields"""
-    try:
-        table_name = inv.ALL_STRUC.record_types[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+str(e))
-        return {'err':True, 'id':0, 'exist':False}
-
-    records_fields = inv.ALL_STRUC.record_types[inv.STR_CONTENT]
-    #Added data for records is the known hash for lookup, a "name" and "description" field
-    rec_find = {records_fields[1]:coll_id, records_fields[2]:data['hash']}
-    rec_set = {}
-    for field in data:
-        rec_set[field] = data[field]
-    #print rec_find, rec_set
-    return update_and_check(coll, rec_find, rec_set)
-
-def update_record_count(inv_db, record_id, new_count):
-    """Update the count for an existing record, given by record_id"""
-    try:
-        table_name = inv.ALL_STRUC.record_types[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+str(e))
-        return {'err':True, 'id':0, 'exist':False}
-    records_fields = inv.ALL_STRUC.record_types[inv.STR_CONTENT]
-    rec_find = {'_id':record_id}
-    rec_set = {records_fields[6]:new_count}
-    return upsert_and_check(coll, rec_find, rec_set)
 
 def add_index(inv_db, coll_id, index_data):
     """Add an index entry for given coll_id"""
@@ -586,6 +375,7 @@ def upsert_and_check(coll, rec_find, rec_set):
     rec_set -- new data to set
 
     """
+    return {'err':True, 'id':0, 'exist':False}
     #Either insert, or update existing and return results
     try:
         result = coll.find_and_modify(query=rec_find, update={"$set":rec_set}, upsert=True, full_response=True)
@@ -607,6 +397,7 @@ def update_and_check(coll, rec_find, rec_set):
 
     """
 
+    return {'err':True, 'id':0, 'exist':False}
     try:
         result = coll.find_and_modify(query=rec_find, update={"$set":rec_set}, upsert=False, full_response=True)
         _id = result['value']['_id']
@@ -712,44 +503,22 @@ def cleanup_records(inv_db, coll_id, record_list):
 #End table sync --------------------------------------------------------------------------
 #Assorted helper access functions --------------------------------------------------------
 
-def count_colls(inv_db, db_id):
+def count_colls(db_id):
     """Count collections with given db_id
     """
 
-    try:
-        table_name = inv.ALL_STRUC.coll_ids[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+str(e))
-        return -1
-    coll_fields = inv.ALL_STRUC.coll_ids[inv.STR_CONTENT]
-    rec_find = {coll_fields[1]:db_id}
+    table_to_search = "inv_tables"
+    info = {}
+    exists_at = db[table_to_search].search({'db_id':db_id}, count_only=True, info=info)
+    return info['number']
 
-    try:
-        return coll.count(rec_find)
-    except Exception as e:
-        inv.log_dest.error("Error getting data "+str(e))
-        return -1
-
-def get_all_colls(inv_db, db_id):
+def get_all_colls(db_id):
     """Fetch all collections with given db_id
     """
 
-    try:
-        table_name = inv.ALL_STRUC.coll_ids[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+str(e))
-        return []
-    coll_fields = inv.ALL_STRUC.coll_ids[inv.STR_CONTENT]
-    rec_find = {coll_fields[1]:db_id}
-
-    try:
-        data = coll.find(rec_find)
-        return list(data)
-    except Exception as e:
-        inv.log_dest.error("Error getting data "+str(e))
-        return []
+    table_to_search = "inv_tables"
+    values = db[table_to_search].search({'db_id':db_id}, count_only=True)
+    return list(values)
 
 def count_records_and_types(inv_db, coll_id, as_string=False):
     """ Count the number of record types in given collection.

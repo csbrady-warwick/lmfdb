@@ -101,7 +101,7 @@ def escape_for_display(obj):
     for item in obj:
         for field in obj[item]:
             if obj[item][field]:
-                obj[item][field] = obj[item][field].replace('\n', ' ')
+                obj[item][field] = str(obj[item][field]).replace('\n', ' ')
             #This is not ideal, but it works for now for display etc
             if field == 'example':
                 obj[item][field] = transform_examples(obj[item][field])

@@ -142,23 +142,7 @@ def get_inv_table_names():
 
 def validate_mongodb(db):
     """Validates the db and collection names in db against expected structure"""
-    n_colls = 0
-    try:
-        if db.name != get_inv_db_name():
-            raise KeyError('name')
-        colls = db.collection_names()
-        tables = get_inv_table_names()
-        for coll in colls:
-            #Should contain only known tables and maybe some other admin ones.
-            if coll not in tables and not 'system.' in coll:
-                raise KeyError(coll)
-            elif coll in tables:
-                n_colls += 1
-        if n_colls != ALL_STRUC.n_colls and n_colls != 0:
-            raise ValueError('n_colls')
-    except:
-        # Exception as e:
-        return False
+    #Cannot be validated in Postgres
     return True
 
 #End structure helpers -------------------------------------------------------------------
