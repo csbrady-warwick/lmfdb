@@ -20,6 +20,6 @@ assert elliptic_curve # for pyflakes
 app.register_blueprint(ec_page, url_prefix="/EllipticCurve/Q")
 
 register_search_function("elliptic_curves_q", "Elliptic Curves over Rationals",
-    "Search over elliptic curves defined over rationals", auto_search = 'ec_curves', inv = ['elliptic_curves','curves'])
+    "Search over elliptic curves defined over rationals", auto_search = 'ec_curves', inv = ['ec','ec_curves'])
 register_singleton('EllipticCurve/Q', 'elliptic_curves', 'curves', 'label', 
     simple_search = searchers.ec_simple_label_search)

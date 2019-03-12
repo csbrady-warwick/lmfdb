@@ -1,4 +1,3 @@
-
 import json
 import inventory_helpers as ih
 import lmfdb_inventory as inv
@@ -125,8 +124,18 @@ def patch_records(first, second):
 
     first, second -- Cursors to patch together, entry by entry. Any not None entries in the second list override those in the first
     """
+    patched = list(first)
     try:
-        dic_first = {item['name']:item['data'] for item in first}
+      for el,val in enumerate(patched):
+        if val.get('cname',None): patched[el]['data']['cname'] = val['cname']
+        if val.get('schema',None): patched[el]['data']['schema'] = val['schema']
+        pass
+    except Exception as e:
+        inv.log_dest.error("Possible error unpacking results "+str(e))
+
+    print(first)
+    try:
+        dic_first = {item['name']:item['data'] for item in patched}
         dic_second = {item['name']:item['data'] for item in second}
     except Exception as e:
         inv.log_dest.error("Possible error unpacking results "+str(e))

@@ -202,7 +202,7 @@ def get_filtered_fields(coll_pair):
     """
 
     dbcon = base.getDBConnection()
-    data = inventory.retrieve_description(dbcon.inventory, coll_pair[0], coll_pair[1])
+    data = inventory.retrieve_description(coll_pair[0], coll_pair[1])
     field_list = data['data']
     if not field_list : return None
 

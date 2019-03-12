@@ -19,4 +19,4 @@ app.register_blueprint(st_page, url_prefix="/SatoTateGroup")
 #    "Search over Sato Tate Groups", auto_search=['sato_tate_groups','small_groups'])
 
 register_search_function("satotate", "Sato Tate Group",
-    "Search over Sato Tate Groups", auto_search=[None,'gps_sato_tate'], inv=['sato_tate_groups','st_groups'])
+    "Search over Sato Tate Groups", auto_search=[None,'gps_sato_tate'], inv=['gps','gps_sato_tate'])
