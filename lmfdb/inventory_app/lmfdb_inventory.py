@@ -10,9 +10,6 @@ __version__ = '0.2.0'
 #Email contact for app errors
 email_contact = 'rse@warwick.ac.uk'
 
-#DB client
-int_client = None
-
 #Sting constants
 STR_NAME = 'name'
 STR_CONTENT = 'content'
@@ -85,45 +82,6 @@ class db_struc:
 #Constant instance of db_struct
 ALL_STRUC = db_struc()
 
-_auth_as_edit = False
-_auth_on_remote = False
-def setup_internal_client(remote=True, editor=False):
-    """Get mongo connection and set int_client to it"""
-
-    #This is a temporary arrangement, to be replaced with LMFDB connection
-    log_dest.info("Getting db client")
-    global int_client, _auth_as_edit, _auth_on_remote
-    if(int_client and _auth_as_edit == editor and _auth_on_remote == remote):
-        return True
-    try:
-        if remote:
-            #Attempt to connect to LMFDB
-            int_client=getDBConnection()
-        else:
-            #Use local tunnel (for debugging)
-            int_client = MongoClient("localhost", 37010)
-
-#       Below was old way of doing auth. To be removed when working
-#        pw_dict = yaml.load(open("passwords.yaml"))
-        #if editor:
-        #    key = 'data'
-        #    auth_db = 'inventory'
-        #else:
-        #    key = 'default'
-        #    auth_db = 'admin'
-#        auth_db = 'inventory'
-#        int_client[auth_db].authenticate(pw_dict[key]['username'], pw_dict[key]['password'])
-#        int_client[auth_db].authenticate(pw_dict['webserver']['username'], pw_dict['webserver']['password'])
-#        int_client[auth_db].authenticate(pw_dict['data']['username'], pw_dict['data']['password'])
-
-    except Exception as e:
-        log_dest.error("Error setting up connection "+str(e))
-        int_client = None
-        return(False)
-    _auth_as_edit = editor
-    _auth_on_remote = remote
-    return True
-
 #Structure helpers -----------------------------------------------------------------------
 def get_inv_db_name():
     """ Get name of inventory db"""
@@ -139,11 +97,6 @@ def get_inv_table_names():
         if isinstance(value, dict) and STR_NAME in value and STR_CONTENT in value:
             names.append(value[STR_NAME])
     return names
-
-def validate_mongodb(db):
-    """Validates the db and collection names in db against expected structure"""
-    #Cannot be validated in Postgres
-    return True
 
 #End structure helpers -------------------------------------------------------------------
 #Other data and form helpers -------------------------------------------------------------

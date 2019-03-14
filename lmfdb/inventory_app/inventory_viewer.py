@@ -160,23 +160,18 @@ def retrieve_records(requested_db, requested_coll):
     requested_coll -- name of collection to fetch inventory for
     """
 
-    table_name = inv.ALL_STRUC.db_ids[inv.STR_NAME]
-    coll_name = inv.ALL_STRUC.coll_ids[inv.STR_NAME]
     try:
-        db_tab = db[table_name]
-        coll_tab = db[coll_name]
-        _id = db_tab.find_one({inv.STR_NAME:requested_db})['_id']
-        coll_record = coll_tab.find_one({'db_id': _id, inv.STR_NAME:requested_coll})
-        _c_id = coll_record['_id']
+        _id = idc.get_db_id(requested_db)['id']
+        _c_id = idc.get_coll_id(_id, requested_coll)
 
-        records = idc.get_all_records(db, _c_id)
+        records = idc.get_all_records(_id, _c_id)
         return {'data':ih.empty_null_record_info(records['data']), 'scrape_date':coll_record['scan_date']}
 
     except Exception as e:
         inv.log_dest.error("Error retrieving inventory "+requested_db+'.'+requested_coll+' '+str(e))
         return {'data':None, 'specials':None, 'scrape_date':None}
 
-def retrieve_indices(db, requested_db, requested_coll):
+def retrieve_indices(requested_db, requested_coll):
     """Retrieve indices for named collection
 
     db -- LMFDB connection to inventory db
@@ -184,14 +179,9 @@ def retrieve_indices(db, requested_db, requested_coll):
     requested_coll -- name of collection to fetch inventory for
     """
 
-    table_name = inv.ALL_STRUC.db_ids[inv.STR_NAME]
-    coll_name = inv.ALL_STRUC.coll_ids[inv.STR_NAME]
     try:
-        db_tab = db[table_name]
-        coll_tab = db[coll_name]
-        _id = db_tab.find_one({inv.STR_NAME:requested_db})['_id']
-        coll_record = coll_tab.find_one({'db_id': _id, inv.STR_NAME:requested_coll})
-        _c_id = coll_record['_id']
+        _id = idc.get_db_id(requested_db)['id']
+        _c_id = idc.get_coll_id(_id, requested_coll)
 
         records = idc.get_all_indices(db, _c_id)
         return {'data':records['data'], 'scrape_date':coll_record['scan_date']}
@@ -224,16 +214,10 @@ def get_records_for_display(full_name):
 
     full_name -- fully qualified name, in form db.coll
     """
-    try:
-        inv.setup_internal_client()
-        db = inv.int_client[inv.ALL_STRUC.name]
-    except Exception as e:
-        raise ih.ConnectOrAuthFail("")
-        return None
 
     try:
         parts = ih.get_description_key_parts(full_name)
-        records = retrieve_records(db, parts[0], parts[1])
+        records = retrieve_records(parts[0], parts[1])
     except Exception as e:
         inv.log_dest.error("Unable to get requested inventory "+ str(e))
         return {'data': None, 'scrape_date': None}
@@ -250,15 +234,8 @@ def get_indices_for_display(full_name):
     full_name -- fully qualified name, in form db.coll
     """
     try:
-        inv.setup_internal_client()
-        db = inv.int_client[inv.ALL_STRUC.name]
-    except Exception as e:
-        raise ih.ConnectOrAuthFail("")
-        return None
-
-    try:
         parts = ih.get_description_key_parts(full_name)
-        records = retrieve_indices(db, parts[0], parts[1])
+        records = retrieve_indices(parts[0], parts[1])
     except Exception as e:
         inv.log_dest.error("Unable to get requested inventory "+ str(e))
         return {'data': None, 'scrape_date': None}
@@ -401,26 +378,21 @@ def process_edits(diff):
     return diff
 
 # Check for locks oncoll before applying
-def check_locked(inv_db, coll_id):
-    return check_scrapes_by_coll_id(inv_db, coll_id)
+def check_locked(coll_id):
+    return check_scrapes_by_coll_id(coll_id)
 
 def check_locks(resp):
     """Check if request pertains to locked coll
     or editing is locked globally
     """
-    inv.setup_internal_client()
-    try:
-        db = inv.int_client[inv.ALL_STRUC.name]
-    except Exception:
-        raise ih.ConnectOrAuthFail("")
     if get_lockout_state():
         raise EditLockError('Global Edit Lock')
     try:
         db_name = resp['db']
         coll_name = resp['collection']
-        db_id = idc.get_db_id(db, db_name)
-        coll_id = idc.get_coll_id(db, db_id['id'], coll_name)
-        if check_locked(db, coll_id['id']):
+        db_id = idc.get_db_id(db_name)
+        coll_id = idc.get_coll_id(db_id['id'], coll_name)
+        if check_locked(coll_id['id']):
             raise EditLockError('Collection locked')
     except Exception as e:
         inv.log_dest.error("Error in locking "+str(e))
@@ -476,31 +448,3 @@ err_registry = {1:DiffKeyError(" "), 2:DiffBadType(""), 4:DiffDecodeError(""), 8
 
 
 #End functions to deal with edit submissions -------------------------------------------------------
-
-if __name__ == "__main__":
-
-    inv.setup_internal_client()
-    db = inv.int_client[inv.ALL_STRUC.name]
-
-    listing = get_edit_list()
-    for item in listing:
-        print(item)
-        coll_listing = gen_retrieve_db_listing(db, item)
-        print("   " + str(coll_listing))
-
-#print json.dumps({'4': 5, '6': 7}, sort_keys=True,
-#...                  indent=4, separators=(',', ': '))
-
-    import random
-    random.seed()
-    item = random.choice(listing)
-    coll_listing = gen_retrieve_db_listing(db, item)
-    coll_item = random.choice(coll_listing)
-    print('_________________________________________')
-    print("Getting for "+str(item) +'.'+ str(coll_item))
-    print(json.dumps(get_inventory_for_display(str(item)+'.'+coll_item), indent=4, separators=(',', ': ')))
-
-else:
-    #Setup the edit transactions logger
-    #Swap out info for debug etc
-    inv.init_transac_log(level_name='warning')

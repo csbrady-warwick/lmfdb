@@ -15,18 +15,10 @@ def upload_scraped_data(structure_data, uid):
     uid -- string uuid from scraper process start call
     """
 
-    try:
-        got_client = inv.setup_internal_client(editor=True)
-        assert(got_client == True)
-        inv_db = inv.int_client[inv.get_inv_db_name()]
-    except Exception as e:
-        inv.log_dest.error("Error getting Db connection "+ str(e))
-        return False
-
     inv.log_dest.warning('In upload with '+str(uid))
-    upload_scraped_inventory(inv_db, structure_data, uid)
+    upload_scraped_inventory(structure_data, uid)
 
-def upload_scraped_inventory(db, structure_dat, uid):
+def upload_scraped_inventory(structure_dat, uid):
     """Upload a json structure document and store any oprhans
 
         db -- LMFDB connection to inventory database
@@ -178,68 +170,33 @@ def upload_indices(db, coll_id, data):
 #End upload routines -----------------------------------------------------------------
 
 #Table removal -----------------------------------------------------------------------
-def delete_contents(db, tbl_name, check=True):
+def delete_contents(tbl_name, check=True):
     """Delete contents of tbl_name """
+    # This should be named unsafe, but shouldn't bother re-doing the checks
 
-    if not inv.validate_mongodb(db) and check:
-        raise TypeError("db does not match Inventory structure")
-        return
-    #Grab the possible table names
-    tbl_names = inv.get_inv_table_names()
-    if tbl_name in tbl_names:
-        try:
-            db[tbl_name].remove()
-        except Exception as e:
-            inv.log_dest.error("Error deleting from "+ tbl_name+' '+ str(e)+", dropping")
-            #Capped tables, e.g rollback, can only be dropped, so try that
-	    try:
-		db[tbl_name].drop()
-            except Exception as e:
-                inv.log_dest.error("Error dropping "+ tbl_name+' '+ str(e))
+    try:
+        #TODO if keep, below should delete all records
+        db[tbl_name].empty()
+    except Exception as e:
+        inv.log_dest.error("Error deleting from "+ tbl_name+' '+ str(e))
 
-def delete_table(db, tbl_name, check=True):
-    """Delete tbl_name (must be empty) """
-
-    if not inv.validate_mongodb(db) and check:
-        raise TypeError("db does not match Inventory structure")
-        return
-    #Grab the possible table names
-    tbl_names = inv.get_inv_table_names()
-    if tbl_name in tbl_names:
-        try:
-	    assert(db[tbl_name].find_one() is None) #Check content is gone
-            db[tbl_name].drop()
-        except Exception as e:
-            inv.log_dest.error("Error dropping "+ tbl_name+' '+ str(e))
-            #Capped tables, e.g rollback, can only be dropped, so try that
-
-def unsafe_delete_all_tables(db):
-    """Delete inventory tables by name without checking this really is the inventory db
-    use if inv.validate_mongod fails and you know some table is missing and you are sure db is the inventory"""
-
+def delete_all_tables():
+    """ Delete all tables specified by inv Note that other names can be present"""
+    # TODO remove this completely???
+    # TODO this should create the list of tables to delete and do any checking it can they are correct
     tbls = inv.get_inv_table_names()
+
+    for tbl in tbls:
+        # Any possible checking here
+        pass
+
     for tbl in tbls:
         try:
-            delete_contents(db, tbl, check=False)
-            delete_table(db, tbl, check=False)
+            delete_contents(tbl)
         except Exception as e:
             inv.log_dest.error("Error deleting "+ tbl + ' ' +str(e))
 
-def delete_all_tables(db):
-    """ Delete all tables specified by inv Note that other names can be present, see inv.validate_mongod"""
-
-    if not inv.validate_mongodb(db):
-        raise TypeError("db does not match Inventory structure")
-        return
-    tbls = inv.get_inv_table_names()
-    for tbl in tbls:
-        try:
-            delete_contents(db, tbl)
-            delete_table(db, tbl)
-        except Exception as e:
-            inv.log_dest.error("Error deleting "+ tbl + ' ' +str(e))
-
-def delete_collection_data(inv_db, coll_id, tbl, dry_run=False):
+def delete_collection_data(coll_id, tbl, dry_run=False):
     """Clean out the data for given collection id
       Removes all entries for coll_id in auto, human or records
 
@@ -256,37 +213,33 @@ def delete_collection_data(inv_db, coll_id, tbl, dry_run=False):
             rec_find = {fields_fields[2]:coll_id}
 
         if not dry_run:
-            inv_db[fields_tbl].remove(rec_find)
+            db[fields_tbl].delete(rec_find)
         else:
             print 'Finding '+str(rec_find)
             print 'Operation would delete:'
-            curs = inv_db[fields_tbl].find(rec_find)
+            curs = db[fields_tbl].search(rec_find)
             for item in curs:
                 print item
     except Exception as e:
         inv.log_dest.error("Error removing fields " + str(e))
 
-def delete_by_collection(inv_db, db_name, coll_name):
+def delete_by_collection(db_name, coll_name):
     """Remove collection entry and all its fields"""
 
-    if not inv.validate_mongodb(inv_db):
-        raise TypeError("db does not match Inventory structure")
-        return
-
     try:
-        _db_id = invc.get_db_id(inv_db, db_name)
-        _c_id = invc.get_coll_id(inv_db, _db_id['id'], coll_name)
+        _db_id = invc.get_db_id(db_name)
+        _c_id = invc.get_coll_id(_db_id['id'], coll_name)
     except Exception as e:
         inv.log_dest.error("Error getting collection " + str(e))
         return {'err':True, 'id':0, 'exist':False}
 
     #Remove fields entries matching _c_id
-    delete_collection_data(inv_db, _c_id['id'], tbl='auto')
-    delete_collection_data(inv_db, _c_id['id'], tbl='human')
-    delete_collection_data(inv_db, _c_id['id'], tbl='records')
+    delete_collection_data(_c_id['id'], tbl='auto')
+    delete_collection_data(_c_id['id'], tbl='human')
+    delete_collection_data(_c_id['id'], tbl='records')
 
     try:
-        inv_db[inv.ALL_STRUC.coll_ids[inv.STR_NAME]].remove({'_id':_c_id['id']})
+        db[inv.ALL_STRUC.coll_ids[inv.STR_NAME]].delete({'_id':_c_id['id']})
     except Exception as e:
         inv.log_dest.error("Error removing collection " + str(e))
 
@@ -294,29 +247,20 @@ def delete_by_collection(inv_db, db_name, coll_name):
 #End table removal -----------------------------------------------------------------------
 
 #Rollback table handling
-def recreate_rollback_table(inv_db, sz):
+def recreate_rollback_table(sz):
     """Create anew the table for edit rollbacks
 
     Arguments :
-    inv_db -- LMFDB db connection to inventory table
     sz -- Max size of the capped table
     If table exists, it is now deleted
     """
     try:
-        table_name = inv.ALL_STRUC.rollback_human[inv.STR_NAME]
-        coll = inv_db[table_name]
-    except Exception as e:
-        inv.log_dest.error("Error getting collection "+str(e))
-        return {'err':True, 'id':0}
-    #fields = inv.ALL_STRUC.rollback_human[inv.STR_CONTENT]
-
-    try:
-        coll.drop()
+        #TODO clearout rollbacks here
     except:
         #TODO Do something useful here?
         pass
-
-    inv_db.create_collection(table_name, capped=True, size=sz)
+    #TODO replace with a recreate of rollbacks
+    db.create_collection(table_name, capped=True, size=sz)
 
 #-----Orphan handling Functions --------------
 
