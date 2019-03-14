@@ -133,7 +133,6 @@ def patch_records(first, second):
     except Exception as e:
         inv.log_dest.error("Possible error unpacking results "+str(e))
 
-    print(first)
     try:
         dic_first = {item['name']:item['data'] for item in patched}
         dic_second = {item['name']:item['data'] for item in second}

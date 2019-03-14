@@ -17,8 +17,12 @@ def api_css():
 
 @api2_page.route("/")
 def index():
-    title = "Structure API"
+    title = "API Description"
     return render_template("api2.html", **locals())
+
+@api2_page.route("/<other>")
+def other(other):
+    return Response(utils.build_api_error(other), mimetype='application/json')    
 
 @api2_page.route("/live/<db>/<coll>")
 def live_page(db, coll):
@@ -28,19 +32,22 @@ def live_page(db, coll):
     search_tuple = utils.simple_search(search)
     return Response(utils.build_api_search(db+'/'+coll, search_tuple, request = request), mimetype='application/json')
 
-@api2_page.route("/livepg/<coll>")
-def live_page_pg(coll):
-    search = utils.create_search_dict(database=None, collection = coll, request = request)
+@api2_page.route("/livepg/<db>")
+def live_page_pg(db):
+    if (db.startswith("<") and db.endswith(">")):
+        title = "API Description"
+        return render_template("example.html", **locals())
+    search = utils.create_search_dict(database=None, collection = db, request = request)
     for el in request.args:
         utils.interpret(search['query'], el, request.args[el], None)
     search_tuple = utils.simple_search(search)
-    return Response(utils.build_api_search(coll, search_tuple, request = request), mimetype='application/json')
+    return Response(utils.build_api_search(db, search_tuple, request = request), mimetype='application/json')
 
 @api2_page.route("/pretty/<path:path_var>")
 def prettify_live(path_var):
+    print(path_var)
     bread = []
     return render_template('view.html', data_url=path_var, bread=bread)
-
 
 @api2_page.route("/singletons/<path:path_var>")
 def handle_singletons(path_var):
@@ -80,6 +87,11 @@ def list_searchers():
 @api2_page.route("/description/<searcher>")
 def list_descriptions(searcher):
     dbstr = normalize('NFKD', searcher).encode('ascii','ignore')
+
+    if (searcher.startswith("<") and searcher.endswith(">")):     
+        title = "API Description"
+        return render_template("example.html", **locals())
+
     try:
         val = searchers[dbstr]
     except KeyError:
@@ -89,12 +101,17 @@ def list_descriptions(searcher):
         lst = val.get_info()
     else:
         return Response(utils.build_api_error(searcher), mimetype='application/json')
-    if list:
+    if lst:
         return Response(utils.build_api_descriptions(dbstr, lst, request=request), mimetype='application/json')
 
 @api2_page.route("/inventory/<searcher>")
 def list_responses(searcher):
     dbstr = normalize('NFKD', searcher).encode('ascii','ignore')
+
+    if (searcher.startswith("<") and searcher.endswith(">")):     
+        title = "API Description"
+        return render_template("example.html", **locals())
+
     try:
         val = searchers[dbstr]
     except KeyError:
@@ -110,6 +127,11 @@ def list_responses(searcher):
 @api2_page.route("/data/<searcher>")
 def get_data(searcher):
     dbstr = normalize('NFKD', searcher).encode('ascii','ignore')
+
+    if (searcher.startswith("<") and searcher.endswith(">")):     
+        title = "API Description"
+        return render_template("example.html", **locals())
+
     try:
         val = searchers[dbstr]
     except KeyError:

@@ -110,11 +110,12 @@ function fillPage(data){
 
   dataDiv = document.getElementById('dataDiv');
 
+  var first_num = data.data.view_start;
   for(var i = 0; i < recordList.length; i++){
     var div = document.createElement('div');
 
     var titleSpan = document.createElement('div');
-    titleSpan.innerHTML = 'Record ' + (i + 1);
+    titleSpan.innerHTML = 'Record ' + (i + 1) + first_num;
 
     var str = JSON.stringify(recordList[i], null, 2);
     var objDiv = document.createElement('code');

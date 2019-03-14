@@ -1621,19 +1621,21 @@ class PostgresTable(PostgresBase):
             qstr, values = self._parse_dict(query)
             selecter = SQL("SELECT {0} FROM {1} WHERE {2} LIMIT 2").format(Identifier("id"), Identifier(self.search_table), qstr)
             cur = self._execute(selecter, values)
+            val = {"operation":None}
             if cur.rowcount > 1:
                 raise ValueError("Query %s does not specify a unique row"%(query))
             elif cur.rowcount == 1: # update
                 row_id = cur.fetchone()[0]
                 for table, dat in cases:
-                    updater = SQL("UPDATE {0} SET ({1}) = ({2}) WHERE {3}")
+                    updater = SQL("UPDATE {0} SET ({1}) = ({2}) WHERE {3} RETURNING *")
                     updater = updater.format(Identifier(table),
                                              SQL(", ").join(map(Identifier, dat.keys())),
                                              SQL(", ").join(Placeholder() * len(dat)),
                                              SQL("id = %s"))
                     dvalues = dat.values()
                     dvalues.append(row_id)
-                    self._execute(updater, dvalues)
+                    val["operation"] = "UPDATE"
+                    val["record"] = self._execute(updater, dvalues)
                 if not self._out_of_order and any(key in self._sort_keys for key in data):
                     self._break_order()
             else: # insertion
@@ -1650,15 +1652,17 @@ class PostgresTable(PostgresBase):
                 if self.extra_table is not None:
                     extras_data["id"] = self.stats.total + 1
                 for table, dat in cases:
-                    inserter = SQL("INSERT INTO {0} ({1}) VALUES ({2})")
+                    inserter = SQL("INSERT INTO {0} ({1}) VALUES ({2}) RETURNING *")
                     inserter.format(Identifier(table),
                                     SQL(", ").join(map(Identifier, dat.keys())),
                                     SQL(", ").join(Placeholder() * len(dat)))
-                    self._execute(inserter, dat.values())
+                    val["operation"] = "INSERT"
+                    val["record"] = self._execute(inserter, dat.values())
                 self._break_order()
                 self.stats.total += 1
             self._break_stats()
             self.log_db_change("upsert", query=query, data=data)
+            return val
 
     def insert_many(self, search_data, extras_data=None, resort=True, reindex=False, restat=True, commit=True):
         """
