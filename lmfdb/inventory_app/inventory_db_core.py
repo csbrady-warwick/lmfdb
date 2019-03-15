@@ -275,7 +275,7 @@ def add_index(coll_id, index_data):
     indexes_fields = inv.ALL_STRUC.indexes[inv.STR_CONTENT]
     record = {indexes_fields[1]:index_data['name'], indexes_fields[2]:coll_id}
     #If record exists, just return its ID
-    exists_at = db['inv_indices']lookup(record)
+    exists_at = db['inv_indices'].lookup(record)
     if exists_at is not None:
         inv.log_dest.debug("Index exists")
         _id = exists_at['_id']

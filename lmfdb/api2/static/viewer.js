@@ -115,7 +115,7 @@ function fillPage(data){
     var div = document.createElement('div');
 
     var titleSpan = document.createElement('div');
-    titleSpan.innerHTML = 'Record ' + (i + 1) + first_num;
+    titleSpan.innerHTML = 'Record ' + (i + 1 + first_num);
 
     var str = JSON.stringify(recordList[i], null, 2);
     var objDiv = document.createElement('code');

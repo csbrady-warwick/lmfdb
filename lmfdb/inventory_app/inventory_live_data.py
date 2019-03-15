@@ -19,6 +19,7 @@ def empty_ops():
 
     try:
       #TODO This should empty out the ops table
+      pass
     except:
         pass
 
@@ -255,12 +256,13 @@ def set_lockout_state(state):
 
 def get_lockout_state():
     """Get global lockout status"""
-
+    res = None
     try:
         rec_find = {'lockout':{"$exists":True}}
         #Get latest lockout record
         res = idc.search_ops_table(rec_find).sort('_id', -1).limit(1)
     except:
+        res = None
         pass
     if res is None:
         return False

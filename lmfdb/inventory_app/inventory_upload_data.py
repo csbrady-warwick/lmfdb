@@ -256,6 +256,7 @@ def recreate_rollback_table(sz):
     """
     try:
         #TODO clearout rollbacks here
+        pass
     except:
         #TODO Do something useful here?
         pass

@@ -418,7 +418,7 @@ def simple_search_postgres(search_dict, projection=None):
     count_only = search_dict.get('count_only', False)
 
     if not projection: 
-        projection = 1
+        projection = 2
     else:
         #Strip out removal of mongo _id fields
         p2 = {}
