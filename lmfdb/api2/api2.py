@@ -20,6 +20,11 @@ def index():
     title = "API Description"
     return render_template("api2.html", **locals())
 
+@api2_page.route("/demo")
+def demo():
+    title = "API Demo"
+    return render_template("api_demo.html", **locals())
+
 @api2_page.route("/<other>")
 def other(other):
     return Response(utils.build_api_error(other), mimetype='application/json')    
