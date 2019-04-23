@@ -1,6 +1,7 @@
 import inventory_helpers as ih
 import lmfdb_inventory as inv
 import inventory_db_core as idc
+import copy
 
 class UpdateFailed(Exception):
     """Raise for failure to update"""
@@ -28,13 +29,13 @@ def update_fields(diff, storeRollback=True):
             for change in diff["diffs"]:
                 if ih.is_special_field(change["item"]):
                     if storeRollback:
-                        rollback = capture_rollback(db, _id['id'], diff["db"], diff["collection"], change)
+                        rollback = capture_rollback(_id['id'], diff["db"], diff["collection"], change)
                     change["item"] = change["item"][2:-2] #Trim special fields. TODO this should be done better somehow
-                    updated = idc.update_coll_data(db, _id['id'], diff["collection"], change["item"], change["field"], change["content"])
+                    updated = idc.update_coll_data(_id['id'], diff["collection"], change["item"], change["field"], change["content"])
                 elif ih.is_toplevel_field(change["item"]):
                     #Here we have item == "toplevel", field the relevant field, and change the new value
                     if storeRollback:
-                        rollback = capture_rollback(db, _id['id'], diff["db"], diff["collection"], change)
+                        rollback = capture_rollback(_id['id'], diff["db"], diff["collection"], change)
                     #Only nice_name is currently an option
                     if(change["field"] not in ['nice_name', 'status']):
                         updated = {'err':True}
@@ -46,30 +47,30 @@ def update_fields(diff, storeRollback=True):
                             else:
                                 new_nice = None
                                 new_stat = ih.status_to_code(change['content'])
-                            c_id = idc.get_coll_id(db, _id['id'], diff['collection'])
-                            updated = idc.update_coll(db, c_id['id'], nice_name=new_nice, status=new_stat)
+                            c_id = idc.get_coll_id(_id['id'], diff['collection'])
+                            updated = idc.update_coll(c_id['id'], nice_name=new_nice, status=new_stat)
                         else:
                             #Is database nice_name
-                            updated = idc.update_db(db, _id['id'], nice_name=change["content"])
+                            updated = idc.update_db(_id['id'], nice_name=change["content"])
                 else:
-                    _c_id = idc.get_coll_id(db, _id['id'], diff["collection"])
+                    _c_id = idc.get_coll_id(_id['id'], diff["collection"])
                     if storeRollback:
-                        rollback = capture_rollback(db, _id['id'], diff["db"], diff["collection"], change, coll_id = _c_id['id'])
+                        rollback = capture_rollback(_id['id'], diff["db"], diff["collection"], change, coll_id = _c_id['id'])
                     succeeded = False
                     #if it looks like a record, try treating as one
                     #If this fails try it as a field
                     if ih.is_probable_record_hash(change['item']):
-                        updated = idc.update_record_description(db, _c_id['id'], {'hash':change["item"], change["field"]:change["content"]})
+                        updated = idc.update_record_description(_c_id['id'], {'hash':change["item"], change["field"]:change["content"]})
                         if updated['err'] == False:
                             succeeded = True;
                     if not succeeded:
-                        updated = idc.update_field(db, _c_id['id'], change["item"], change["field"], change["content"], type="human")
+                        updated = idc.update_field(_c_id['id'], change["item"], change["field"], change["content"], type="human")
 
                 if updated['err']:
                     raise KeyError("Cannot update, item not present")
                 else:
                     if storeRollback:
-                        store_rollback(db, rollback)
+                        store_rollback(rollback)
 
         except Exception as e:
             inv.log_dest.error("Error applying diff "+ str(change)+' '+str(e))
@@ -89,6 +90,8 @@ def capture_rollback(db_id, db_name, coll_name, change, coll_id = None):
     coll_id -- Supply if this is a field edit and so coll_id is known
     Roll-backs can be applied using apply_rollback. Their format is a diff, with extra 'post' field storing the state after change, and the live field which should be unset if they are applied
     """
+
+    return {}
 
     is_record = False
     #Fetch the current state
@@ -140,6 +143,8 @@ def store_rollback(rollback_diff):
     """
     if not rollback_diff:
         return {'err':True, 'id':0}
+
+    return {'err':True, 'id':0}
 
     #Commit to db
     table = 'inv_rollbacks'

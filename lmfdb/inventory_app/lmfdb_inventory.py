@@ -50,11 +50,11 @@ class db_struc:
     n_colls = 8
     db_ids = {STR_NAME : 'DB_ids', STR_CONTENT : ['_id', 'name', 'nice_name']}
     coll_ids = {STR_NAME : 'collection_ids', STR_CONTENT :['_id', 'db_id', 'name', 'nice_name', 'NOTES', 'INFO', 'scan_date', 'status']}
-    fields_auto = {STR_NAME : 'fields_auto', STR_CONTENT : ['_id', 'coll_id', 'name', 'data']}
-    fields_human = {STR_NAME : 'fields_human', STR_CONTENT : ['_id', 'coll_id', 'name', 'data']}
-    record_types = {STR_NAME : 'records', STR_CONTENT :['_id', 'coll_id', 'hash', 'name', 'descrip', 'schema', 'count']}
+    fields_auto = {STR_NAME : 'fields_auto', STR_CONTENT : ['_id', 'table_id', 'name', 'data']}
+    fields_human = {STR_NAME : 'fields_human', STR_CONTENT : ['_id', 'table_id', 'name', 'data']}
+    record_types = {STR_NAME : 'records', STR_CONTENT :['_id', 'table_id', 'hash', 'name', 'descrip', 'schema', 'count']}
     rollback_human = {STR_NAME : 'rollback', STR_CONTENT:['_id', 'diff']}
-    indexes = {STR_NAME : 'indexes', STR_CONTENT :['_id', 'name', 'coll_id', 'keys']}
+    indexes = {STR_NAME : 'indexes', STR_CONTENT :['_id', 'name', 'table_id', 'keys']}
     ops = {STR_NAME : 'ops', STR_CONTENT:[]} #Ops has no fixed format
     def get_fields(self, which):
         if which =='auto':

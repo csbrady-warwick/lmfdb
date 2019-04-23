@@ -13,30 +13,30 @@ from lmfdb.backend.database import db
 
 def is_valid_db(db_name):
 
-    return is_valid_db_table(db_name, None)
+    return is_valid_db_collection(db_name, None)
 
-def is_valid_db_table(db_name, table_name):
-    """Check if db and table name (if not None) exist"""
+def is_valid_db_collection(db_name, collection_name):
+    """Check if db and collection name (if not None) exist"""
     try:
         db_id = idc.get_db_id(db_name)
         if not db_id['exist']:
             return False
-        if table_name:
-            coll_id = idc.get_coll_id(db_id['id'], table_name)
+        if collection_name:
+            coll_id = idc.get_coll_id(db_id['id'], collection_name)
             if not coll_id['exist']:
                 return False
     except Exception as e:
-        inv.log_dest.error('Failed checking existence of '+db_name+' '+table_name+' '+str(e))
+        inv.log_dest.error('Failed checking existence of '+db_name+' '+collection_name+' '+str(e))
         return False
     return True
 
-def get_nicename(db_name, table_name):
+def get_nicename(db_name, collection_name):
     """Return the nice_name string for given db/coll pair"""
 
     try:
-        if table_name:
+        if collection_name:
             db_id = idc.get_db_id(db_name)
-            coll_rec = idc.get_coll(db_id['id'], table_name)
+            coll_rec = idc.get_coll(db_id['id'], collection_name)
             nice_name = coll_rec['data']['nice_name']
         else:
             db_rec = idc.get_db(db_name)
@@ -44,7 +44,7 @@ def get_nicename(db_name, table_name):
             nice_name = db_rec['data']['nice_name']
         return nice_name
     except Exception as e:
-        inv.log_dest.error('Failed to get nice name for '+db_name+' '+table_name+' '+str(e))
+        inv.log_dest.error('Failed to get nice name for '+db_name+' '+collection_name+' '+str(e))
         #Can't return nice name so return None
         return None
 
@@ -274,35 +274,35 @@ def apply_edits(diff):
         diff_to_apply = process_edits(diff_to_apply)
         update_fields(diff_to_apply)
     except Exception as e:
-        inv.log_dest.error("Error in edit validation or apply "+str(e))
+#        inv.log_dest.error("Error in edit validation or apply "+str(e))
         raise e
 
 
 def apply_submitted_edits(response):
     """ Attempt to apply edits submitted as a diffs object via web, i.e member of response obj
     """
-    try:
-        inv.log_transac.info(str(response.referrer)+' : '+str(response.data))
-    except Exception as e:
-        #If we can't log the attempt, we can still maybe log the failure. Perhaps data is missing etc
-        inv.log_transac.error("Failed to log transaction "+str(e))
+#    try:
+#        inv.log_transac.info(str(response.referrer)+' : '+str(response.data))
+#    except Exception as e:
+#        #If we can't log the attempt, we can still maybe log the failure. Perhaps data is missing etc
+#        inv.log_transac.error("Failed to log transaction "+str(e))
 
     #Validate the response and if good pass to the DB interface code
     try:
         decoder = json.JSONDecoder()
         resp_str = decoder.decode(response.data)
     except Exception as e:
-        inv.log_dest.error("Error decoding edits "+str(e))
+#        inv.log_dest.error("Error decoding edits "+str(e))
         raise DiffDecodeError(str(e))
 
     try:
-        check_locks(resp_str) # Throws custom error if locked
+#        check_locks(resp_str) # Throws custom error if locked
         validate_edits(resp_str) #This throws custom exceptions
         resp_str = process_edits(resp_str)
         update_fields(resp_str)
     except Exception as e:
         #Log and re-raise
-        inv.log_dest.error("Error in edit validation "+str(e))
+#        inv.log_dest.error("Error in edit validation "+str(e))
         raise e
 
 def validate_edits(diff):

@@ -263,10 +263,12 @@ def update_field(coll_id, item, field, content, type='auto'):
     #fields_auto = {STR_NAME : 'fields_auto', STR_CONTENT : ['_id', 'coll_id', 'name', 'data']}
 
     fields_fields = inv.ALL_STRUC.get_fields(type)[inv.STR_CONTENT]
-    rec_find = {fields_fields[1]:coll_id, fields_fields[2]:item, fields_fields[3]+'.'+field:{"$exists":True}}
-    rec_set = {fields_fields[3]+'.'+field: content}
+    rec_find = {fields_fields[1]:coll_id, fields_fields[2]:item}
+    dat = list(db['inv_fields_'+type].search(rec_find))[0][fields_fields[3]]
+    dat[field] = content
+    rec_set = {fields_fields[3]:dat}
 
-    return update_and_check(db['inv_fields'], rec_find, rec_set)
+    return update_and_check(db['inv_fields_'+type], rec_find, rec_set)
 
 def add_index(coll_id, index_data):
     """Add an index entry for given coll_id"""
@@ -344,7 +346,7 @@ def update_and_check(table, rec_find, rec_set):
         _id = None
         exist = False
     except Exception as e:
-        inv.log_dest.error("Error updating record "+str(rec_find)+' '+ str(e))
+#        inv.log_dest.error("Error updating record "+str(rec_find)+' '+ str(e))
         return {'err':True, 'id':0, 'exist':False}
     return {'err':False, 'id':_id, 'exist':exist}
 
@@ -485,7 +487,7 @@ def count_records_and_types(coll_id, as_string=False):
     counts = (-1, -1)
     try:
         tbl = 'inv_records'
-        recs = list(db[tbl].search({'coll_id': coll_id}))
+        recs = list(db[tbl].search({'table_id': coll_id}))
         n_types = len(recs)
         n_rec = sum([rec['count'] for rec in recs])
         counts = (n_rec, n_types)
