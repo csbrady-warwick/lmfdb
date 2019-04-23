@@ -1,6 +1,6 @@
 import dbtools
 import id_object
-from lmfdb.db_backend import db
+from lmfdb.backend.database import db
 import datetime
 
 __version__ = '1.0.0'

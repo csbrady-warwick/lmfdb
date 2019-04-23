@@ -2,7 +2,7 @@ import inventory_helpers as ih
 import lmfdb_inventory as inv
 import datetime as dt
 from lmfdb.utils import comma
-from lmfdb.db_backend import db
+from lmfdb.backend.database import db
 
 #Table creation routines -------------------------------------------------------------
 

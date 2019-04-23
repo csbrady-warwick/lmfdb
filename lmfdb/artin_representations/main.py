@@ -2,20 +2,22 @@
 # This Blueprint is about Artin representations
 # Author: Paul-Olivier Dehaye, John Jones
 
-from lmfdb.db_backend import db
+import re, random
+
 from flask import render_template, request, url_for, flash, redirect
 from markupsafe import Markup
-
-from lmfdb.artin_representations import artin_representations_page
-from lmfdb.search_parsing import parse_primes, parse_restricted, parse_element_of, parse_galgrp, parse_ints, parse_container, clean_input
-from lmfdb.search_wrapper import search_wrap
-
-from math_classes import ArtinRepresentation
-from lmfdb.transitive_group import group_display_knowl
-
 from sage.all import ZZ
 
-import re, random
+from lmfdb import db
+from lmfdb.utils import (
+    parse_primes, parse_restricted, parse_element_of, parse_galgrp,
+    parse_ints, parse_container, clean_input,
+    search_wrap)
+from lmfdb.galois_groups.transitive_group import group_display_knowl
+from lmfdb.artin_representations import artin_representations_page
+from lmfdb.artin_representations.math_classes import ArtinRepresentation
+
+LABEL_RE = re.compile(r'^\d+\.\d+(e\d+)?(_\d+(e\d+)?)*\.\d+(t\d+)?\.\d+c\d+$')
 
 def get_bread(breads=[]):
     bc = [("Artin Representations", url_for(".index"))]
@@ -41,11 +43,22 @@ def make_cond_key(D):
 
 def parse_artin_label(label):
     label = clean_input(label)
-    if re.compile(r'^\d+\.\d+(e\d+)?(_\d+(e\d+)?)*\.\d+(t\d+)?\.\d+c\d+$').match(label):
+    if LABEL_RE.match(label):
         return label
     else:
         raise ValueError("Error parsing input %s.  It is not in a valid form for an Artin representation label, such as 9.2e12_587e3.10t32.1c1"% label)
 
+def add_lfunction_friends(friends, label):
+    rec = db.lfunc_instances.lucky({'type':'Artin','url':'ArtinRepresentation/'+label})
+    if rec:
+        for r in db.lfunc_instances.search({'Lhash':rec["Lhash"]}):
+            s = r['url'].split('/')
+            # only friend embedded CMFs
+            if r['type'] == 'CMF' and len(s) == 10:
+                cmf_label = '.'.join(s[4:])
+                url = r['url'] if r['url'][0] == '/' else '/' + r['url']
+                friends.append(("Modular form " + cmf_label, url))
+    return friends
 
 @artin_representations_page.route("/")
 def index():
@@ -70,7 +83,7 @@ def artin_representation_jump(info):
              table=db.artin_reps,
              title='Artin Representation Search Results',
              err_title='Artin Representation Search Error',
-             per_page=10,
+             per_page=50,
              learnmore=learnmore_list,
              shortcuts={'natural':artin_representation_jump},
              bread=lambda:[('Artin Representations', url_for(".index")), ('Search Results', ' ')],
@@ -95,7 +108,7 @@ def search_input_error(info, bread):
 
 @artin_representations_page.route("/<dim>/<conductor>/")
 def by_partial_data(dim, conductor):
-    return artin_representation_search(**{'dimension': dim, 'conductor': conductor})
+    return artin_representation_search({'dimension': dim, 'conductor': conductor})
 
 
 # credit information should be moved to the databases themselves, not at the display level. that's too late.
@@ -156,6 +169,7 @@ def render_artin_representation_webpage(label):
         else:
             detrep = the_rep.central_character_as_artin_rep()
             friends.append(("Determinant representation "+detrep.label(), detrep.url_for()))
+    add_lfunction_friends(friends,label)
 
     # once the L-functions are in the database, the link can always be shown
     #if the_rep.dimension() <= 6:

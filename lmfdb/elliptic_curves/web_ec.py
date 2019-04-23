@@ -3,12 +3,12 @@ import re
 import os
 import yaml
 from flask import url_for
-from lmfdb.db_backend import db
-from lmfdb.utils import make_logger, web_latex, encode_plot, coeff_to_poly, web_latex_split_on_pm
-from lmfdb.modular_forms.elliptic_modular_forms.backend.emf_utils import newform_label, is_newform_in_db
+from lmfdb import db
+from lmfdb.utils import web_latex, encode_plot, coeff_to_poly, web_latex_split_on_pm
+from lmfdb.logger import make_logger
 from lmfdb.sato_tate_groups.main import st_link_by_name
 from lmfdb.number_fields.number_field import field_pretty
-from lmfdb.WebNumberField import nf_display_knowl, string2list
+from lmfdb.number_fields.web_number_field import nf_display_knowl, string2list
 
 from sage.all import EllipticCurve, latex, ZZ, QQ, prod, Factorization, PowerSeriesRing, prime_range
 
@@ -143,10 +143,12 @@ class WebEC(object):
         try:
             N, iso, number = split_lmfdb_label(label)
             data = db.ec_curves.lucky({"lmfdb_label" : label})
+            data['label_type'] = 'LMFDB'
         except AttributeError:
             try:
                 N, iso, number = split_cremona_label(label)
                 data = db.ec_curves.lucky({"label" : label})
+                data['label_type'] = 'Cremona'
             except AttributeError:
                 return "Invalid label" # caller must catch this and raise an error
 
@@ -245,7 +247,6 @@ class WebEC(object):
                                  if (N*data['ap'][i]) %p !=0]
 
         cond, iso, num = split_lmfdb_label(self.lmfdb_label)
-        self.class_url = url_for(".by_double_iso_label", conductor=N, iso_label=iso)
         self.one_deg = ZZ(self.class_deg).is_prime()
         self.ncurves = db.ec_curves.count({'lmfdb_iso':self.lmfdb_iso})
         isodegs = [str(d) for d in self.isogeny_degrees if d>1]
@@ -286,14 +287,19 @@ class WebEC(object):
         self.make_torsion_growth()
 
         data['newform'] =  web_latex(PowerSeriesRing(QQ, 'q')(data['an'], 20, check=True))
-        data['newform_label'] = self.newform_label = newform_label(cond,2,1,iso)
-        self.newform_link = url_for("emf.render_elliptic_modular_forms", level=cond, weight=2, character=1, label=iso)
-        self.newform_exists_in_db = is_newform_in_db(self.newform_label)
+        data['newform_label'] = self.newform_label = ".".join( [str(cond), str(2), 'a', iso] )
+        self.newform_link = url_for("cmf.by_url_newform_label", level=cond, weight=2, char_orbit_label='a', hecke_orbit=iso)
+        self.newform_exists_in_db = db.mf_newforms.label_exists(self.newform_label)
         self._code = None
 
-        self.class_url = url_for(".by_double_iso_label", conductor=N, iso_label=iso)
+        if self.label_type == 'Cremona':
+            self.class_url = url_for(".by_ec_label", label=self.iso)
+            self.class_name = self.iso
+        else:
+            self.class_url = url_for(".by_double_iso_label", conductor=N, iso_label=iso)
+            self.class_name = self.lmfdb_iso
         self.friends = [
-            ('Isogeny class ' + self.lmfdb_iso, self.class_url),
+            ('Isogeny class ' + self.class_name, self.class_url),
             ('Minimal quadratic twist %s %s' % (data['minq_info'], data['minq_label']), url_for(".by_triple_label", conductor=minq_N, iso_label=minq_iso, number=minq_number)),
             ('All twists ', url_for(".rational_elliptic_curves", jinv=self.jinv)),
             ('L-function', url_for("l_functions.l_function_ec_page", conductor_label = N, isogeny_class_label = iso))]
@@ -306,11 +312,11 @@ class WebEC(object):
         if self.newform_exists_in_db:
             self.friends += [('Modular form ' + self.newform_label, self.newform_link)]
 
-        self.downloads = [('Download coefficients of q-expansion', url_for(".download_EC_qexp", label=self.lmfdb_label, limit=1000)),
-                          ('Download all stored data', url_for(".download_EC_all", label=self.lmfdb_label)),
-                          ('Download Magma code', url_for(".ec_code_download", conductor=cond, iso=iso, number=num, label=self.lmfdb_label, download_type='magma')),
-                          ('Download SageMath code', url_for(".ec_code_download", conductor=cond, iso=iso, number=num, label=self.lmfdb_label, download_type='sage')),
-                          ('Download GP code', url_for(".ec_code_download", conductor=cond, iso=iso, number=num, label=self.lmfdb_label, download_type='gp'))
+        self.downloads = [('q-expansion to text', url_for(".download_EC_qexp", label=self.lmfdb_label, limit=1000)),
+                          ('All stored data to text', url_for(".download_EC_all", label=self.lmfdb_label)),
+                          ('Code to Magma', url_for(".ec_code_download", conductor=cond, iso=iso, number=num, label=self.lmfdb_label, download_type='magma')),
+                          ('Code to SageMath', url_for(".ec_code_download", conductor=cond, iso=iso, number=num, label=self.lmfdb_label, download_type='sage')),
+                          ('Code to GP', url_for(".ec_code_download", conductor=cond, iso=iso, number=num, label=self.lmfdb_label, download_type='gp'))
         ]
 
         try:
@@ -320,17 +326,20 @@ class WebEC(object):
 
 
         self.plot_link = '<a href="{0}"><img src="{0}" width="200" height="150"/></a>'.format(self.plot)
-        self.properties = [('Label', self.lmfdb_label),
+        self.properties = [('Label', self.label if self.label_type == 'Cremona' else self.lmfdb_label),
                            (None, self.plot_link),
-                           ('Conductor', '\(%s\)' % data['conductor']),
-                           ('Discriminant', '\(%s\)' % data['disc']),
+                           ('Conductor', '%s' % data['conductor']),
+                           ('Discriminant', '%s' % data['disc']),
                            ('j-invariant', '%s' % data['j_inv_latex']),
                            ('CM', '%s' % data['CM']),
-                           ('Rank', '\(%s\)' % self.mw['rank']),
+                           ('Rank', '%s' % self.mw['rank']),
                            ('Torsion Structure', '\(%s\)' % self.mw['tor_struct'])
                            ]
 
-        self.title = "Elliptic Curve %s (Cremona label %s)" % (self.lmfdb_label, self.label)
+        if self.label_type == 'Cremona':
+            self.title = "Elliptic Curve with Cremona label {} (LMFDB label {})".format(self.label, self.lmfdb_label)
+        else:
+            self.title = "Elliptic Curve with LMFDB label {} (Cremona label {})".format(self.lmfdb_label, self.label)
 
         self.bread = [('Elliptic Curves', url_for("ecnf.index")),
                            ('$\Q$', url_for(".rational_elliptic_curves")),
@@ -475,8 +484,14 @@ class WebEC(object):
             if d!=lastd:
                 tg1['m'] = len([x for x in tgextra if x['d']==d])
                 lastd = d
-        ## Hard code for now
-        #tg['maxd'] = max(db.ec_curves.stats.get_oldstat('torsion_growth')['degrees'])
+
+        ## Hard-code this for now.  While something like
+        ## max(db.ec_curves.search({},projection='tor_degs')) might
+        ## work, since 'tor_degs' is in the extra table it is very
+        ## slow.  Note that the *only* place where this number is used
+        ## is in the ec-curve template where it says "The number
+        ## fields ... of degree up to {{data.tg.maxd}} such that...".
+        
         tg['maxd'] = 7
 
 

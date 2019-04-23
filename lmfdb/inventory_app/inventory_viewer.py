@@ -7,7 +7,7 @@ from inventory_live_data import get_lockout_state
 from scrape_helpers import check_scrapes_by_coll_id
 from copy import deepcopy
 from lmfdb.utils import comma
-from lmfdb.db_backend import db
+from lmfdb.backend.database import db
 
 #Functions to populate viewer pages
 

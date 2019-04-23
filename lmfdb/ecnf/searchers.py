@@ -1,6 +1,6 @@
 from urllib import unquote
 from lmfdb.ecnf.WebEllipticCurve import convert_IQF_label
-from lmfdb.search_parsing import nf_string_to_label
+from lmfdb.utils import nf_string_to_label
 def ecnf_simple_label_search(search, baseurl, label):
 
     label_bits = label.split('/')

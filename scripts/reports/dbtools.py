@@ -1,4 +1,4 @@
-from lmfdb.db_backend import db
+from lmfdb.backend.database import db
 
 def get_sample_record(collection, field_name):
     """ Function to get a sample, non-empty record from a collection 

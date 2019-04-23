@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from lmfdb.base import app
-from lmfdb.utils import make_logger
+from lmfdb.app import app
+from lmfdb.logger import make_logger
 from flask import Blueprint
 from lmfdb.api2.searchers import register_search_function, register_singleton
 import searchers

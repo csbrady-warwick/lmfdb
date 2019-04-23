@@ -1,9 +1,8 @@
 import datetime
 from lmfdb.api2 import __version__
 import json
-from bson.objectid import ObjectId
-import lmfdb.base as base
-from lmfdb.db_backend import db
+#from bson.objectid import ObjectId
+from lmfdb.backend.database import db
 import lmfdb.inventory_app.inventory_viewer as inventory
 
 api_version = __version__
@@ -201,7 +200,6 @@ def get_filtered_fields(coll_pair):
     coll_pair -- Two element list or tuple (database, collection)
     """
 
-    dbcon = base.getDBConnection()
     data = inventory.retrieve_description(coll_pair[0], coll_pair[1])
     field_list = data['data']
     if not field_list : return None
@@ -214,6 +212,8 @@ def patch_up_old_inventory(data, table_name):
     data -- old inventory data
     table_name -- Name of table in postgres database
     """
+
+    print(data)
 
     table = db[table_name]
     result = {}
@@ -349,8 +349,8 @@ def interpret(query, qkey, qval, type_info):
                 qval = int(qval[1:])
             elif qval.startswith("f"):
                 qval = float(qval[1:])
-            elif qval.startswith("o"):
-                qval = ObjectId(qval[1:])
+#            elif qval.startswith("o"):
+#                qval = ObjectId(qval[1:])
             elif qval.startswith("ls"):      # indicator, that it might be a list of strings
                 qval = qval[2:].split(DELIM)
             elif qval.startswith("li"):
@@ -379,33 +379,9 @@ def simple_search(search_dict, projection=None):
     """
 
     if search_dict['database']:
-        return simple_search_mongo(search_dict, projection)
+        return None
     else:
         return simple_search_postgres(search_dict, projection)
-
-def simple_search_mongo(search_dict, projection=None):
-    """
-    Perform a simple search from a request
-    """
-
-    try:
-        offset = search_dict['view_start']
-    except:
-        offset = 0
-
-    try:
-        rcount = search_dict['max_count']
-    except:
-        rcount = 100
-
-    metadata = {}
-    C = base.getDBConnection()
-    data = C[search_dict['database']][search_dict['collection']].find(search_dict['query'], projection).max_time_ms(10000)
-    metadata['record_count'] = data.count()
-    metadata['correct_count'] = True
-    data_out = list(data.skip(offset).limit(rcount))
-    metadata['view_count'] = len(data_out)
-    return metadata, list(data_out), search_dict
 
 def simple_search_postgres(search_dict, projection=None):
     """

@@ -1,7 +1,7 @@
 import lmfdb_inventory as inv
 import inventory_db_core as idc
 import datetime
-from lmfdb.base import getDBConnection
+#from lmfdb.base import getDBConnection
 from scrape_frontend import get_scrape_progress
 
 #Max time before scrape is considered to have failed
@@ -174,7 +174,7 @@ def check_scrapes_running(scrape_list):
         try:
             db_name = idc.get_db_name(item['db'])['name']
             coll_name = idc.get_coll_name(item['coll'])['name']
-            prog = get_scrape_progress(db_name, coll_name, getDBConnection())
+#            prog = get_scrape_progress(db_name, coll_name, getDBConnection())
             if prog == (-1, -1):
                 new_list.append(item)
         except Exception as e:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from lmfdb.base import app
+from lmfdb.app import app
 from flask import Blueprint
 from lmfdb.api2.searchers import register_search_function
 

@@ -1,7 +1,7 @@
 from pymongo import MongoClient
 import json
 import logging, logging.handlers
-from lmfdb.base import getDBConnection
+#from lmfdb.base import getDBConnection
 
 #Contains the general data and functions for all inventory handling
 

@@ -1,4 +1,4 @@
-from scripts.reports.jsonify_db_structure import get_lmfdb_collections as glc
+from scripts.reports.jsonify_pg_structure import get_lmfdb_collections as glc
 import json
 import inventory_helpers as ih
 import inventory_viewer as iv
@@ -7,7 +7,7 @@ import inventory_db_core as idc
 from scrape_helpers import register_scrape
 import scrape_frontend as sf
 import uuid
-from lmfdb.base import getDBConnection
+#from lmfdb.base import getDBConnection
 
 
 ops_sz = 2000000
@@ -100,7 +100,7 @@ def get_progress_from_db(uid, db_id, coll_id):
     db_name = idc.get_db_name(db_id)['name']
     coll_name = idc.get_coll_name(coll_id)['name']
     try:
-        live_progress = sf.get_scrape_progress(db_name, coll_name, getDBConnection())
+        live_progress = 0#sf.get_scrape_progress(db_name, coll_name, getDBConnection())
         #Cheat here: we'll cap running to 99% and the last 1% is left for upload time
         #If no running record found, this assumes it completed before
         #we managed to check it, hence 99%
