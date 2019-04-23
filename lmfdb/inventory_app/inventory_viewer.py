@@ -13,30 +13,30 @@ from lmfdb.backend.database import db
 
 def is_valid_db(db_name):
 
-    return is_valid_db_collection(db_name, None)
+    return is_valid_db_table(db_name, None)
 
-def is_valid_db_collection(db_name, collection_name):
-    """Check if db and collection name (if not None) exist"""
+def is_valid_db_table(db_name, table_name):
+    """Check if db and table name (if not None) exist"""
     try:
         db_id = idc.get_db_id(db_name)
         if not db_id['exist']:
             return False
-        if collection_name:
-            coll_id = idc.get_coll_id(db_id['id'], collection_name)
+        if table_name:
+            coll_id = idc.get_coll_id(db_id['id'], table_name)
             if not coll_id['exist']:
                 return False
     except Exception as e:
-        inv.log_dest.error('Failed checking existence of '+db_name+' '+collection_name+' '+str(e))
+        inv.log_dest.error('Failed checking existence of '+db_name+' '+table_name+' '+str(e))
         return False
     return True
 
-def get_nicename(db_name, collection_name):
+def get_nicename(db_name, table_name):
     """Return the nice_name string for given db/coll pair"""
 
     try:
-        if collection_name:
+        if table_name:
             db_id = idc.get_db_id(db_name)
-            coll_rec = idc.get_coll(db_id['id'], collection_name)
+            coll_rec = idc.get_coll(db_id['id'], table_name)
             nice_name = coll_rec['data']['nice_name']
         else:
             db_rec = idc.get_db(db_name)
@@ -44,7 +44,7 @@ def get_nicename(db_name, collection_name):
             nice_name = db_rec['data']['nice_name']
         return nice_name
     except Exception as e:
-        inv.log_dest.error('Failed to get nice name for '+db_name+' '+collection_name+' '+str(e))
+        inv.log_dest.error('Failed to get nice name for '+db_name+' '+table_name+' '+str(e))
         #Can't return nice name so return None
         return None
 

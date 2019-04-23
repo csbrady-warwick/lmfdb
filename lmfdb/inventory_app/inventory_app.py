@@ -154,7 +154,7 @@ def generate_live_listing():
 @inventory_app.route('<string:id>/<string:id2>/data/')
 def fetch_edit_inventory(id, id2):
     try:
-        results = inventory_viewer.get_inventory_for_display(id2)
+        results = inventory_viewer.get_inventory_for_display(id+'.'+id2)
     except ih.ConnectOrAuthFail:
         linv.log_dest.error("Returning auth fail page")
         return "{}"
@@ -164,7 +164,7 @@ def fetch_edit_inventory(id, id2):
 @inventory_app.route('<string:id>/<string:id2>/indices/data/')
 def fetch_indices(id, id2):
     try:
-        results = inventory_viewer.get_indices_for_display(id2)
+        results = inventory_viewer.get_indices_for_display(id+'.'+id2)
     except ih.ConnectOrAuthFail:
         linv.log_dest.error("Returning auth fail page")
         return "{}"
