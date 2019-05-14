@@ -25,6 +25,8 @@ def update_fields(diff, storeRollback=True):
             inv.log_dest.info("Updating descriptions for " + diff["db"])
         _id = idc.get_db_id(diff["db"])
         rollback = None
+
+        storeRollback = False
         try:
             for change in diff["diffs"]:
                 if ih.is_special_field(change["item"]):

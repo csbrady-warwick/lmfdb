@@ -343,8 +343,8 @@ def update_and_check(table, rec_find, rec_set):
     try:
         result = table.upsert(rec_find, rec_set)
 #        _id = result['value']['_id']
-        _id = None
-        exist = False
+        _id = -1
+        exist = True
     except Exception as e:
 #        inv.log_dest.error("Error updating record "+str(rec_find)+' '+ str(e))
         return {'err':True, 'id':0, 'exist':False}
