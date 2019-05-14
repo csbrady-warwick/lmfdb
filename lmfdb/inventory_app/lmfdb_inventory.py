@@ -18,10 +18,12 @@ STR_INFO = "(INFO)"
 
 #Fields to edit for normal records. These will always be shown, blank if no data exists
 #Value can be used to impose ordering in views
-base_editable_fields = {'type':1, 'description':2, 'example':3}
+base_editable_fields = {'type':2, 'description':3, 'example':4, 'c_name':-1}
 #sorted(d, key=d.get) returns keys sorted by values
 def display_field_order():
-    return sorted(base_editable_fields, key=base_editable_fields.get)
+    return sorted(base_editable_fields, key=lambda s : abs(base_editable_fields.get(s)))
+def field_editable():
+    return [name for (name, val) in base_editable_fields.items() if val > 0]
 
 info_editable_fields = {'nice_name':1, 'description':2, 'contact':4, 'status':3, 'code':5}
 def info_field_order():

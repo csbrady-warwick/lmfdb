@@ -154,7 +154,7 @@ def show_edit_inventory(id, id2):
     if locked:
         return render_template('edit_locked.html')
     else:
-        return render_template('edit_inventory.html', db_name=id, collection_name=id2, type_data=linv.get_type_strings_as_json(), bread=bread, table_fields=linv.display_field_order())
+        return render_template('edit_inventory.html', db_name=id, collection_name=id2, type_data=linv.get_type_strings_as_json(), bread=bread, table_fields=linv.display_field_order(), table_edit=linv.field_editable())
 
 #Record edit page per collection
 @inventory_app.route('<string:id>/<string:id2>/records/edit/')
