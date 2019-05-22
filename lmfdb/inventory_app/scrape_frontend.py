@@ -1,4 +1,4 @@
-import scripts.reports.jsonify_db_structure as jdbs
+import scripts.reports.jsonify_pg_structure as jdbs
 import inventory_upload_data as iud
 from scrape_progress_update import update_scrape_progress
 import threading
@@ -34,8 +34,7 @@ def scrape_worker(db, coll, uuid, connection):
 
     for el in coll:
         update_scrape_progress(db, el, uuid, running = True)
-        data = jdbs.parse_collection_info_to_json(db, el,
-            connection = connection)
+        data = jdbs.parse_collection_info_to_json(db+'_'+el)
         iud.upload_scraped_data(data, uuid)
         update_scrape_progress(db, el, uuid, running = False, complete = True)
 

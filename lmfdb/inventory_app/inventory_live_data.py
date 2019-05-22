@@ -67,14 +67,21 @@ def get_progress(uid):
 
     #NOTE what follows _is_ vulnerable to races but
     # this will only affect the progress meter, and should be rare
-    scrapes = idc.search_ops_table({'uid':uuid.UUID(uid), 'running':{"$exists":True}})
+    scrapes = idc.search_ops_table({'isa':'scrape', 'content':{'uid':uuid.UUID(uid)}})
     #Assume all ops records with correct uid and containing 'running' are relevant
-    n_scrapes = scrapes.count()
+    try:
+        n_scrapes = scrapes.count()
+    except:
+        try:
+            n_scrapes = len(scrapes())
+        except:
+            n_scrapes = 0
+
     curr_coll = 0
     curr_item = None
     for item in scrapes:
-        if item['complete'] : curr_coll = curr_coll + 1
-        if item['running'] : curr_item = item
+        if item['content']['complete'] : curr_coll = curr_coll + 1
+        if item['content']['running'] : curr_item = item
 
     if curr_item:
         try:

@@ -21,7 +21,6 @@ def upload_scraped_data(structure_data, uid):
 def upload_scraped_inventory(structure_dat, uid):
     """Upload a json structure document and store any oprhans
 
-        db -- LMFDB connection to inventory database
         structure_dat -- JSON document containing all db/collections to upload
         uid -- UID string for uploading process
     """
@@ -32,18 +31,16 @@ def upload_scraped_inventory(structure_dat, uid):
 
     for db_name in structure_dat:
         progress_tracker += 1
-        inv.log_dest.info("Uploading " + db_name+" ("+str(progress_tracker)+" of "+str(n_dbs)+')')
-        invc.set_db(db, db_name, db_name)
+        invc.set_db(db_name, db_name)
 
         for coll_name in structure_dat[db_name]:
-            inv.log_dest.info("    Uploading collection "+coll_name)
-            orphaned_keys = upload_collection_structure(db, db_name, coll_name, structure_dat, fresh=False)
+            orphaned_keys = upload_collection_structure(db_name, coll_name, structure_dat, fresh=False)
             if len(orphaned_keys) != 0:
-                db_id = invc.get_db_id(db, db_name)
-                coll_id = invc.get_coll_id(db, db_id['id'], coll_name)
-                ild.store_orphans(db, db_id['id'], coll_id['id'], uid, orphaned_keys)
+                db_id = invc.get_db_id(db_name)
+                coll_id = invc.get_coll_id(db_id['id'], coll_name)
+                ild.store_orphans(db_id['id'], coll_id['id'], uid, orphaned_keys)
 
-def upload_collection_structure(db, db_name, coll_name, structure_dat, fresh=False):
+def upload_collection_structure(db_name, coll_name, structure_dat, fresh=False):
     """Upload the structure description for a single collection
 
     Any entered descriptions for keys which still exist are preserved.
@@ -63,42 +60,36 @@ def upload_collection_structure(db, db_name, coll_name, structure_dat, fresh=Fal
 
     try:
         coll_entry = structure_dat[db_name][coll_name]
-        db_entry = invc.get_db_id(db, db_name)
+        db_entry = invc.get_db_id(db_name)
         if not db_entry['exist']:
             #All dbs should have been added from the struc: if not is error
-            inv.log_dest.error("ERROR: No inventory DB entry "+ db_name)
-            inv.log_dest.error("Cannot add descriptions")
             return
 
-        _c_id = invc.get_coll_id(db, db_entry['id'], coll_name)
+        _c_id = invc.get_coll_id(db_entry['id'], coll_name)
         if not _c_id['exist']:
 	    #Collection doesn't exist, create it
-            _c_id = invc.set_coll(db, db_entry['id'], coll_name, coll_name,  {'description':None}, dummy_info, 0)
+            _c_id = invc.set_coll(db_entry['id'], coll_name, coll_name,  {'description':None}, dummy_info, 0)
         else:
 	    #Delete existing auto-table entries (no collection => no entries)
-           delete_collection_data(db, _c_id['id'], tbl='auto')
+           delete_collection_data(_c_id['id'], tbl='auto')
         try:
             scrape_date = datetime.datetime.strptime(structure_dat[db_name][coll_name]['scrape_date'], '%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            inv.log_dest.info("Scrape date parsing failed "+str(e))
             scrape_date = datetime.datetime.min
-        invc.set_coll_scrape_date(db, _c_id['id'], scrape_date)
+        invc.set_coll_scrape_date(_c_id['id'], scrape_date)
 
     except Exception as e:
         inv.log_dest.error("Failed to refresh collection (db, coll or scrape data) "+str(e))
 
     try:
         for field in coll_entry['fields']:
-            inv.log_dest.info("            Processing "+field)
-            invc.set_field(db, _c_id['id'], field, coll_entry['fields'][field])
-        for record in coll_entry['records']:
-            inv.log_dest.info("            Processing record "+str(record))
-            invc.set_record(db, _c_id['id'], coll_entry['records'][record])
+            invc.set_field(_c_id['id'], field, coll_entry['fields'][field])
+#        for record in coll_entry['records']:
+#            invc.set_record(_c_id['id'], coll_entry['records'][record])
         #Cleanup any records which no longer exist
-        invc.cleanup_records(db, _c_id['id'], coll_entry['records'])
+#        invc.cleanup_records(_c_id['id'], coll_entry['records'])
 
-        inv.log_dest.info("            Processing indices")
-        upload_indices(db, _c_id['id'], coll_entry['indices'])
+#        upload_indices(db, _c_id['id'], coll_entry['indices'])
 
     except Exception as e:
         inv.log_dest.error("Failed to refresh collection entries "+str(e))
@@ -107,15 +98,14 @@ def upload_collection_structure(db, db_name, coll_name, structure_dat, fresh=Fal
     if not fresh:
         try:
 	    #Trim any human table keys which are now redundant
-            orphaned_keys = invc.trim_human_table(db, db_entry['id'], _c_id['id'])
+            orphaned_keys = invc.trim_human_table(db_entry['id'], _c_id['id'])
         except Exception as e:
-            inv.log_dest.error("Failed trimming table "+str(e))
-
+            pass
     #Ensure everything mandatory is present in human table
-    try:
-        invc.complete_human_table(db, db_entry['id'], _c_id['id'])
-    except Exception as e:
-        inv.log_dest.error("Failed padding table "+str(e))
+#    try:
+#        invc.complete_human_table(db_entry['id'], _c_id['id'])
+#    except Exception as e:
+#        inv.log_dest.error("Failed padding table "+str(e))
 
     return orphaned_keys
 

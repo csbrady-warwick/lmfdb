@@ -6,7 +6,7 @@ def update_scrape_progress_helper(db_id, coll_id, uid, complete=None, running=No
     If running is provided, then set it.
     """
     try:
-        rec_find = {'db':db_id, 'coll':coll_id, 'uid':uid}
+        rec_find = {'db':db_id, 'table':coll_id, 'uid':uid}
         rec_set = {}
         if complete is not None:
             rec_set['complete'] = complete

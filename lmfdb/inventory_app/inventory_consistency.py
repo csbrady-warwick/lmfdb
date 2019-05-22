@@ -3,6 +3,10 @@ from bson import SON
 import lmfdb_inventory as inv
 from inventory_live_data import get_lockout_state
 import inventory_helpers as ih
+import inventory_db_core as idc
+from lmfdb.backend.database import db
+
+
 from scrape_helpers import get_completed_scrapes, get_live_scrapes_older_than
 import datetime
 import threading
@@ -11,9 +15,15 @@ import threading
 def get_latest_report():
 
 
-    reports = idc.search_ops_table({'isa':'report', 'scan_date':{'$exists':True}})
+    reports = idc.search_ops_table({'isa':'report'})
     sorted_reports = sorted(reports, key=lambda s : s['scan_date'])
-    return sorted_reports[-1]
+    rept = sorted_reports[-1]
+    rept['report'] = rept.pop('content')
+
+    try:
+        return rept
+    except:
+        return {'scan_date':'NaN'}
 
 def generate_report_threaded():
 
@@ -32,7 +42,7 @@ def generate_report():
     report = {}
 
     #Check connection, editor status etc
-    report['connection'] = report_connection(idb)
+    report['connection'] = report_connection()
 
     all_colls = list(idc.get_all_colls())
 
@@ -41,18 +51,18 @@ def generate_report():
     report['gone'] = report_gone(all_colls)
     report['scrapes'] = report_scrapes()
 
-    report_record = {'isa':'report', 'scan_date': datetime.datetime.now(), 'report':report}
+    report_record = {'isa':'report', 'scan_date': datetime.datetime.now(), 'content':report}
     idc.add_to_ops_table(report_record)
 #    return report
 
-def report_connection(idb):
+def report_connection():
     """Check connection, check is inventory, check inventory is as expected
     """
     # TODO fix this, when recreate scraper
 #    roles = idb['admin'].command(SON({"connectionStatus":int(1)}))
 #    can_write = 'readWrite' in [el['role'] for el in roles['authInfo']['authenticatedUserRoles'] if el['db']=='inventory']
 #    inv_ok = ??
-#    lockout = get_lockout_state()
+    lockout = get_lockout_state()
     can_write = False
     inv_ok = False
     lockout = False
@@ -63,21 +73,20 @@ def report_fields_tables(colls):
     Checks that auto and human match in keys
     Check human.data contains expected fields
     """
-
     patch=[]
     for item in colls:
         #TODO fix this
-         a=db['inv_fields_human'].count({'coll_id':item['_id']})
-         b=db['inv_fields_auto'].count({'coll_id':item['_id']})
+         a=db['inv_fields_human'].count({'table_id':item['_id']})
+         b=db['inv_fields_auto'].count({'table_id':item['_id']})
          if a != b:
-             list_a = set([el['name'] for el in db['inv_fields_human'].search({'coll_id':item['_id']}, {'name':1})])
-             list_b = set([el['name'] for el in db['inv_fields_auto'].search({'coll_id':item['_id']}, {'name':1})])
+             list_a = set([el['name'] for el in db['inv_fields_human'].search({'table_id':item['_id']})])
+             list_b = set([el['name'] for el in db['inv_fields_auto'].search({'table_id':item['_id']})])
              keys = list(list_a.symmetric_difference(list_b))
              patch.append((item['name'], item['_id'], a, b, keys))
 
     bad_items = []
     for item in colls:
-        all_human=db['inv_fields_human'].search({'coll_id':item['_id']})
+        all_human=db['inv_fields_human'].search({'table_id':item['_id']})
         key_list = []
         for field in all_human:
                 for key in inv.base_editable_fields:

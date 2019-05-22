@@ -25,7 +25,7 @@ def check_scrapes_on(spec=None):
 def check_scrapes_by_coll_id(coll_id):
     """Check for scrapes queued or in progress for coll_id"""
     try:
-        spec_ids = {'coll':coll_id}
+        spec_ids = {'table':coll_id}
         result = check_if_scraping(spec_ids) or check_if_scraping_queued(spec_ids)
         return result
     except:
@@ -66,7 +66,7 @@ def register_scrape(db, coll, uid):
 def check_if_scraping(record):
 
     record['running'] = True
-    result = idc.search_ops_table(record)
+    result = idc.search_ops_table({'content':record, 'isa':'scrape'})
 
     return result is not None
 
@@ -74,7 +74,7 @@ def check_if_scraping_queued(record):
 
     record['running'] = False
     record['complete'] = False
-    result = idc.search_ops_table(record)
+    result = idc.search_ops_table({'content':record, 'isa':'scrape'})
 
     return result is not None
 
@@ -82,26 +82,24 @@ def check_if_scraping_done(record):
 
     record['running'] = False
     record['complete'] = True
-    result = idc.search_ops_table(record)
+    result = idc.search_ops_table({'content':record, 'isa':'scrape'})
 
     return result is not None
 
 def check_and_insert_scrape_record(db_id, coll_id, uid):
 
-    record = {'db':db_id, 'coll':coll_id}
+    record = {'db':db_id, 'table':coll_id}
     #Is this either scraping or queued
     is_scraping = check_if_scraping(record) or check_if_scraping_queued(record)
-    inv.log_dest.warning(is_scraping)
     if is_scraping : return {'err':False, 'inprog':True, 'ok':False}
 
     time = datetime.datetime.now()
     record = {'db':db_id, 'coll':coll_id, 'uid':uid, 'time':time, 'running':False, 'complete':False}
     #Db and collection ids. UID for scrape process. Time triggered. If this COLL is being scraped. If this coll hass been done
     try:
-        insert_scrape_record(record)
+        insert_scrape_record({'isa':'scrape', 'content':record})
         result = {'err':False, 'inprog':False, 'ok':True}
     except Exception as e:
-        inv.log_dest.warning('Failed to insert scrape '+str(e))
         result = {'err':True, 'inprog':False, 'ok':False}
     return result
 
@@ -172,7 +170,7 @@ def check_scrapes_running(scrape_list):
     for item in scrape_list:
         try:
             db_name = idc.get_db_name(item['db'])['name']
-            coll_name = idc.get_coll_name(item['coll'])['name']
+            coll_name = idc.get_coll_name(item['table'])['name']
 #            prog = get_scrape_progress(db_name, coll_name, getDBConnection())
             if prog == (-1, -1):
                 new_list.append(item)

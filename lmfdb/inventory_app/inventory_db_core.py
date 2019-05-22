@@ -13,7 +13,7 @@ def get_db_id(name):
     """
 
     table_to_search = "inv_dbs"
-    exists_at = db[table_to_search].search({'name':name}, limit=1)
+    exists_at = db[table_to_search].search({'name':name}, limit=1, projection=3)
     if len(exists_at) > 0:
         _id = exists_at[0]['_id']
     else:
@@ -65,13 +65,17 @@ def get_db(name):
     """ Get database record by name """
 
     table_to_search = "inv_dbs"
-    exists_at = db[table_to_search].search({'name':name}, limit=1)
+    exists_at = db[table_to_search].search({'name':name}, limit=1, projection=3)
     if len(exists_at) > 0:
-        _id = exists_at[0]['_id']
+        try:
+            _id = exists_at[0]['_id']
+        except:
+            #Happens if record is broken - shouldn't be
+            _id = -1
         data = exists_at[0]
         err = False
     else:
-        _id = 0
+        _id = -1
         data = None
         err = True
 
@@ -79,8 +83,17 @@ def get_db(name):
 
 def set_db(name, nice_name):
     """ Insert a new DB with given name and optional nice name (defaults to equal name), or return id if this exists. """
-#TODO refill body
-    return {'err':True, 'id':_id, 'exist':False}
+    existing = get_db(name)
+    if not existing['exist']:
+        # This is completely absurd, but the data in the DB are so badly arranged that this is the simplest fix
+        # The actual id column is completely useless, and the _id isn't auto incrementing, so we'll just have to
+        # hack around it
+        a=list(db['inv_dbs'].search({}, projection='_id'))
+        next_id = max(a) + 1
+        db['inv_dbs'].insert_many([{'name':name, 'nice_name':nice_name, '_id':next_id}])
+
+    db_data = get_db(name)
+    return db_data.pop('data')
 
 def update_db(db_id, name=None, nice_name=None):
     """"Update DB name or nice_name info by db id"""
@@ -146,6 +159,14 @@ def set_coll(db_id, name, nice_name, notes, info, status):
         rec_set[coll_fields[5]] = info
     if status is not None:
         rec_set[coll_fields[7]] = status
+
+
+    # This is completely absurd, but the data in the DB are so badly arranged that this is the simplest fix
+    # The actual id column is completely useless, and the _id isn't auto incrementing, so we'll just have to
+    # hack around it
+    a=list(db['inv_tables'].search({}, projection='_id'))
+    next_id = max(a) + 1
+    rec_set['_id'] = next_id
 
     return upsert_and_check(db['inv_tables'], rec_find, rec_set)
 
@@ -324,6 +345,7 @@ def upsert_and_check(table, rec_find, rec_set):
 #            _id = result['lastErrorObject']['upserted']
 #        elif 'value' in result:
 #            _id = result['value']['_id']
+        print(result)
         _id = None
         upserted = False
     except Exception as e:
@@ -367,7 +389,8 @@ def add_to_ops_table(rec_set):
 
     table_to_change = "inv_ops"
     try:
-        db[table_to_change].upsert(rec_set, rec_set)
+        # TODO Interface seems to lack any way of inserting a single record????
+        db[table_to_change].insert_many([rec_set])
         return {'err':False}
     except:
         return {'err':True}
