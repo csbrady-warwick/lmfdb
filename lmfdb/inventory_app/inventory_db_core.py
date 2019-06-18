@@ -3,6 +3,7 @@ import lmfdb_inventory as inv
 import datetime as dt
 from lmfdb.utils import comma
 from lmfdb.backend.database import db
+from psycopg2.extras import Json
 
 #Table creation routines -------------------------------------------------------------
 
@@ -160,13 +161,14 @@ def set_coll(db_id, name, nice_name, notes, info, status):
     if status is not None:
         rec_set[coll_fields[7]] = status
 
-
     # This is completely absurd, but the data in the DB are so badly arranged that this is the simplest fix
     # The actual id column is completely useless, and the _id isn't auto incrementing, so we'll just have to
     # hack around it
-    a=list(db['inv_tables'].search({}, projection='_id'))
-    next_id = max(a) + 1
-    rec_set['_id'] = next_id
+    coll = get_coll(db_id, name)
+    if not coll['exist']:
+        a=list(db['inv_tables'].search({}, projection='_id'))
+        next_id = max(a) + 1
+        rec_set['_id'] = next_id
 
     return upsert_and_check(db['inv_tables'], rec_find, rec_set)
 
@@ -205,7 +207,7 @@ def update_coll_data(db_id, name, item, field, content):
     """
 
     coll_fields = inv.ALL_STRUC.coll_ids[inv.STR_CONTENT]
-    rec_find = {coll_fields[1]:db_id, coll_fields[2]:name, item+'.'+field:{"$exists":True}}
+    rec_find = {coll_fields[1]:db_id, coll_fields[2]:name}
     rec_set = {item+'.'+field:content}
 
     return update_and_check(db['inv_tables'], rec_find, rec_set)
@@ -216,7 +218,6 @@ def set_coll_scrape_date(coll_id, scrape_date):
     try:
         assert(isinstance(scrape_date, dt.datetime))
     except Exception as e:
-        inv.log_dest.error("Invalid scrape_date, expected datetime.datetime "+str(e))
         return {'err':True, 'id':0, 'exist':False}
 
     coll_fields = inv.ALL_STRUC.coll_ids[inv.STR_CONTENT]
@@ -270,7 +271,16 @@ def set_field(coll_id, name, data, type='auto'):
     data = ih.null_all_empty_fields(data)
     rec_set = {fields_fields[3]:data}
 
-    return upsert_and_check(db['inv_fields'], rec_find, rec_set)
+    result = upsert_and_check(db['inv_fields_'+type], rec_find, rec_set)
+    print(result)
+    # Now generate and set the sequenctial _id until we can
+    # refactor the data properly
+    if not result['exist'] or result['id'] == -1:
+        a=list(db['inv_fields_'+type].search({}, projection='_id'))
+        next_id = max(a) + 1
+        rec_set['_id'] = next_id
+    db['inv_fields_'+type].update(rec_find, rec_set, restat=False)
+
 
 def update_field(coll_id, item, field, content, type='auto'):
     """ Update an existing field entry. Item must exist
@@ -341,15 +351,12 @@ def upsert_and_check(table, rec_find, rec_set):
     """
     try:
         result = table.upsert(rec_find, rec_set)
-#        if 'upserted' in result['lastErrorObject']:
-#            _id = result['lastErrorObject']['upserted']
-#        elif 'value' in result:
-#            _id = result['value']['_id']
-        print(result)
-        _id = None
-        upserted = False
+        upserted = result[0]
+        if result[0]:
+            _id = result[1]
+        else:
+            _id = -1
     except Exception as e:
-        inv.log_dest.error("Error inserting new record "+ str(e))
         return {'err':True, 'id':0, 'exist':False}
     return {'err':False, 'id':_id, 'exist':(not upserted)}
 
@@ -363,14 +370,15 @@ def update_and_check(table, rec_find, rec_set):
     """
 
     try:
-        result = table.upsert(rec_find, rec_set)
-#        _id = result['value']['_id']
-        _id = -1
-        exist = True
+        table.update(rec_find, rec_set, restat=False)
+        #Update returns nothing, so we have to search now...
+        # Yes the update routine can have butchered the data we gave it...
+        result = list(table.search(rec_find))
+        if len(result) == 0:
+            raise(ValueError)
     except Exception as e:
-#        inv.log_dest.error("Error updating record "+str(rec_find)+' '+ str(e))
-        return {'err':True, 'id':0, 'exist':False}
-    return {'err':False, 'id':_id, 'exist':exist}
+        return {'err':True, 'id':-1, 'exist':False}
+    return {'err':False, 'id':result[0]['_id'], 'exist':True}
 
 #End table creation routines -------------------------------------------------------------
 

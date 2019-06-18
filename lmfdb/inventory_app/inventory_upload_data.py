@@ -2,8 +2,8 @@ import lmfdb_inventory as inv
 import inventory_db_core as invc
 import inventory_live_data as ild
 import datetime
+from psycopg2.extras import Json
 
-#TODO this should log to its own logger
 #Routines to upload data from reports scan into inventory DB
 
 MAX_SZ = 10000
@@ -15,7 +15,6 @@ def upload_scraped_data(structure_data, uid):
     uid -- string uuid from scraper process start call
     """
 
-    inv.log_dest.warning('In upload with '+str(uid))
     upload_scraped_inventory(structure_data, uid)
 
 def upload_scraped_inventory(structure_dat, uid):
@@ -25,7 +24,6 @@ def upload_scraped_inventory(structure_dat, uid):
         uid -- UID string for uploading process
     """
 
-    inv.log_dest.info("_____________________________________________________________________________________________")
     n_dbs = len(structure_dat.keys())
     progress_tracker = 0
 
@@ -84,12 +82,7 @@ def upload_collection_structure(db_name, coll_name, structure_dat, fresh=False):
     try:
         for field in coll_entry['fields']:
             invc.set_field(_c_id['id'], field, coll_entry['fields'][field])
-#        for record in coll_entry['records']:
-#            invc.set_record(_c_id['id'], coll_entry['records'][record])
-        #Cleanup any records which no longer exist
-#        invc.cleanup_records(_c_id['id'], coll_entry['records'])
 
-#        upload_indices(db, _c_id['id'], coll_entry['indices'])
 
     except Exception as e:
         inv.log_dest.error("Failed to refresh collection entries "+str(e))
@@ -101,11 +94,6 @@ def upload_collection_structure(db_name, coll_name, structure_dat, fresh=False):
             orphaned_keys = invc.trim_human_table(db_entry['id'], _c_id['id'])
         except Exception as e:
             pass
-    #Ensure everything mandatory is present in human table
-#    try:
-#        invc.complete_human_table(db_entry['id'], _c_id['id'])
-#    except Exception as e:
-#        inv.log_dest.error("Failed padding table "+str(e))
 
     return orphaned_keys
 
