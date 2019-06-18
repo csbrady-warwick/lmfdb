@@ -274,14 +274,17 @@ Note that you need editor priviledges to add, delete or modify data.
    large numbers of rows, this method will be faster.
 
    ```python
-   sage: db.test_table.copy_from('test.txt', search_cols=['dim', 'discriminant', 'label', 'bad_primes'])
+   sage: db.test_table.copy_from('test.txt', sep='|'])
    ```
 
    Example contents of `test.txt`:
 
    ```
-   1    12      1.12.A  [2,3]
-   2    30      2.30.A  [2,3,5]
+   dim|discriminant|label|bad_primes
+   smallint|numeric|text|jsonb
+
+   1|12|1.12.A|[2,3]
+   2|30|2.30.A|[2,3,5]
    ```
 
    Note that very few (if any) LMFDB tables currently enforce
@@ -597,14 +600,13 @@ Statistics
    Create a statistics object inheriting from `StatsDisplay` in
    `lmfdb/display_stats.py`.  It should have attributes
 
-   - `short_summary` (which can be displayed at the top of your browse
-   - page), `summary` (which will be displayed at the top of the
-   - statistics page), `table` (the postgres table on which statistics
-   - are computed), `baseurl_func` (the function giving your browse
-   - page, e.g. `'.index'`), `stat_list` (a list of dictionaries
-   - giving the statistics to be displayed; `'cols'`, `'row_title'`
-   - and `'knowl'` are required arguments, and other optional
-   - arguments allow you to adjust the default behavior)
+   - `short_summary` (which can be displayed at the top of your browse page), 
+   - `summary` (which will be displayed at the top of the statistics page),
+   - `table` (the postgres table on which statistics are computed),
+   - `baseurl_func` (the function giving your browse page, e.g. `'.index'`),
+   - `stat_list` (a list of dictionaries giving the statistics to be displayed; 
+   - `'cols'`, `'row_title'` and `'knowl'` are required arguments,
+   - and other optional arguments allow you to adjust the default behavior)
 
    Once you've created such an object, you can call its `setup()`
    method from a sage prompt (with editor privileges) in order to

@@ -31,7 +31,7 @@ from glob import glob
 import csv
 import sys
 
-from psycopg2 import connect, DatabaseError, InterfaceError, OperationalError, ProgrammingError, NotSupportedError
+from psycopg2 import connect, DatabaseError, InterfaceError, OperationalError, ProgrammingError, NotSupportedError, DataError
 from psycopg2.sql import SQL, Identifier, Placeholder, Literal, Composable
 from psycopg2.extras import execute_values
 from psycopg2.extensions import cursor as pg_cursor
@@ -380,7 +380,7 @@ class PostgresBase(object):
             else:
                 try:
                     cur.execute(query, values)
-                except (OperationalError, ProgrammingError, NotSupportedError) as e:
+                except (OperationalError, ProgrammingError, NotSupportedError, DataError) as e:
                     try:
                         context = ' happens while executing {}'.format(cur.mogrify(query, values))
                     except Exception:
@@ -1636,8 +1636,8 @@ class PostgresTable(PostgresBase):
              u'r2': 0,
              u'ramps': [11, 53, 702551],
              u'used_grh': False}
-            sage: nf.lucky({'label':u'6.6.409587233.1'},projection=['reg'])
-            {'reg':455.191694993}
+            sage: nf.lucky({'label':u'6.6.409587233.1'},projection=['regulator'])
+            {'regulator':455.191694993}
         """
         search_cols, extra_cols = self._parse_projection(projection)
         vars = SQL(", ").join(map(IdentifierWrapper, search_cols + extra_cols))
@@ -2783,7 +2783,7 @@ class PostgresTable(PostgresBase):
             if col != "id" and col not in self._search_cols:
                 raise ValueError("%s is not a column of %s"%(col, self.search_table))
         if self.extra_table is None:
-            search_data = data
+            search_data = dict(data)
             for col in data:
                 if col not in self._search_cols:
                     raise ValueError("%s is not a column of %s"%(col, self.search_table))
@@ -2829,7 +2829,8 @@ class PostgresTable(PostgresBase):
                     val["record"] = self._execute(updater, dvalues)
                 if not self._out_of_order and any(key in self._sort_keys for key in data):
                     self._break_order()
-            else: # insertion
+
+            else:  # insertion
                 if "id" in data or "id" in query:
                     raise ValueError("Cannot specify an id for insertion")
                 new_row = True
@@ -2844,8 +2845,8 @@ class PostgresTable(PostgresBase):
                 if self.extra_table is not None:
                     extras_data["id"] = self.max_id() + 1
                 for table, dat in cases:
-                    inserter = SQL("INSERT INTO {0} ({1}) VALUES ({2}) RETURNING *")
-                    inserter.format(Identifier(table),
+                    inserter = SQL("INSERT INTO {0} ({1}) VALUES ({2})").format(
+                                    Identifier(table),
                                     SQL(", ").join(map(Identifier, dat.keys())),
                                     SQL(", ").join(Placeholder() * len(dat)))
                     self._execute(inserter, self._parse_values(dat))
@@ -3214,8 +3215,8 @@ class PostgresTable(PostgresBase):
 
         # Reinitialize object
         tabledata = self._execute(SQL("SELECT name, label_col, sort, count_cutoff, id_ordered, out_of_order, has_extras, stats_valid, total FROM meta_tables WHERE name = %s"), [self.search_table]).fetchone()
-        table = PostgresTable(self, *tabledata)
-        self.__dict__[self.search_table] = table
+        table = PostgresTable(self._db, *tabledata)
+        self._db.__dict__[self.search_table] = table
 
     def drop_tmp(self):
         """
@@ -3235,7 +3236,7 @@ class PostgresTable(PostgresBase):
         """
         Use this method to revert to an older version of a table.
 
-        Note that doing calling this method twice with the same input
+        Note that calling this method twice with the same input
         should return you to the original state.
 
         INPUT:
@@ -3254,17 +3255,15 @@ class PostgresTable(PostgresBase):
         elif not self._table_exists("%s_old%s"%(self.search_table, backup_number)):
             raise ValueError("Backup %s does not exist"%backup_number)
         with DelayCommit(self, commit, silence=True):
-            indexes = self.list_indexes().keys()
-            constraints = self.list_constraints().keys()
             old = '_old' + str(backup_number)
             tables = []
             for suffix in ['', '_extras', '_stats', '_counts']:
                 tablename = "{0}{1}".format(self.search_table, suffix)
                 if self._table_exists(tablename + old):
                     tables.append(tablename)
-            self._swap(tables, indexes, constraints, '', '_tmp')
-            self._swap(tables, indexes, constraints, old, '')
-            self._swap(tables, indexes, constraints, '_tmp', old)
+            self._swap(tables, '', '_tmp')
+            self._swap(tables, old, '')
+            self._swap(tables, '_tmp', old)
             self.log_db_change("reload_revert")
         print "Swapped backup %s with %s"%(self.search_table, "{0}_old{1}".format(self.search_table, backup_number))
 
@@ -5835,17 +5834,17 @@ SELECT table_name, row_estimate, total_bytes, index_bytes, toast_bytes,
 
     def copy_to(self, search_tables, data_folder, **kwds):
         if os.path.exists(data_folder):
-            return ValueError("The path {} already exists".format(data_folder))
+            raise ValueError("The path {} already exists".format(data_folder))
         os.makedirs(data_folder)
         failures = []
         for tablename in search_tables:
             if tablename in self.tablenames:
                 table = self[tablename]
                 searchfile = os.path.join(data_folder, tablename + '.txt')
-                statsfile =  os.path.join(data_folder, tablename + '_stats.txt')
-                countsfile =  os.path.join(data_folder, tablename + '_counts.txt')
-                extrafile =  os.path.join(data_folder, tablename + '_extras.txt')
-                if table.extra_table is  None:
+                statsfile = os.path.join(data_folder, tablename + '_stats.txt')
+                countsfile = os.path.join(data_folder, tablename + '_counts.txt')
+                extrafile = os.path.join(data_folder, tablename + '_extras.txt')
+                if table.extra_table is None:
                     extrafile = None
                 indexesfile = os.path.join(data_folder, tablename + '_indexes.txt')
                 constraintsfile = os.path.join(data_folder, tablename + '_constraints.txt')
@@ -5857,7 +5856,7 @@ SELECT table_name, row_estimate, total_bytes, index_bytes, toast_bytes,
         if failures:
             print "Failed to copy %s (not in tablenames)" % (", ".join(failures))
 
-    def copy_to_from_remote(self, search_tables, data_folder, remote_opts = None, **kwds):
+    def copy_to_from_remote(self, search_tables, data_folder, remote_opts=None, **kwds):
         if remote_opts is None:
             from lmfdb.utils.config import Configuration
             remote_opts = Configuration().get_postgresql_default()
